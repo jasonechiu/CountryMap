@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>世界地形拼圖</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,10 +80,10 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .riv-major { fill: none; stroke: #2f88c9; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
 .riv-minor { fill: none; stroke: #3b93cf; stroke-width: .7; stroke-linecap: round; opacity: .75; }
 .lbl { font-family: var(--font-body); paint-order: stroke; stroke-linejoin: round; text-anchor: middle; pointer-events: none; }
-.lbl.ctx { font-size: calc(12px / var(--z, 1)); fill: #4c5f5f; stroke: rgba(255,255,255,.75); stroke-width: calc(3px / var(--z, 1)); letter-spacing: .1em; }
-.lbl.sea { font-family: var(--font-display); font-size: calc(17px / var(--z, 1)); fill: rgba(16,70,80,.55); letter-spacing: .5em; font-weight: 600; }
-.lbl.place { font-size: calc(12.5px / var(--z, 1)); font-weight: 700; fill: #1d2b22; stroke: rgba(255,255,255,.88); stroke-width: calc(3.2px / var(--z, 1)); }
-.lbl.place .en { font-weight: 500; font-size: calc(10px / var(--z, 1)); }
+.lbl.ctx { font-size: calc(11.5px / var(--z, 1)); fill: #4c5f5f; stroke: rgba(255,255,255,.75); stroke-width: calc(3px / var(--z, 1)); letter-spacing: .1em; }
+.lbl.sea { font-family: var(--font-display); font-size: calc(16px / var(--z, 1)); fill: rgba(16,70,80,.55); letter-spacing: .5em; font-weight: 600; }
+.lbl.place { font-size: calc(12px / var(--z, 1)); font-weight: 700; fill: #1d2b22; stroke: rgba(255,255,255,.88); stroke-width: calc(3.2px / var(--z, 1)); }
+.lbl.place .en { font-weight: 500; font-size: calc(9.5px / var(--z, 1)); }
 
 .zoom { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: 12px; display: grid; gap: 4px; }
 .zoom button { width: 34px; height: 34px; border-radius: 8px; border: 0; background: rgba(255,255,255,.9); color: #1d3336; box-shadow: 0 1px 4px rgba(0,0,0,.18); font-size: 18px; line-height: 1; }
@@ -213,9 +214,9 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
         </defs>
         <rect id="ocean" x="-2000" y="-2000" fill="url(#oceanGrad)"/>
         <g id="gSea"></g>
-        <g id="gSlots"></g>
         <use href="#terrainLayer" clip-path="url(#landClip)"/>
         <g id="gVeil"></g>
+        <g id="gSlots"></g>
         <g id="gLines"></g>
         <g id="gHits"></g>
         <g id="gLabels"></g>
@@ -256,9 +257,9 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 <div class="tip" id="tip" hidden></div>
 
 <script>
-const LEVELS_DATA = __LEVELS__;
+const LEVEL_META = __LEVEL_META__;   // per region: { n: pieces }; the map itself is fetched from data/<id>.json when chosen
 const FLAGS = __FLAGS__;
-const CONTINENTS = { asia: { zh: '亞洲', en: 'Asia' } };
+const CONTINENTS = { asia: { zh: '亞洲', en: 'Asia' }, europe: { zh: '歐洲', en: 'Europe' } };
 const LV = {
   ea:  { cont: 'asia', zh: { region: '東亞', title: '東亞地形拼圖' }, en: { region: 'East Asia', title: 'East Asia Terrain Puzzle' },
          seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: 139, lat: 27 }, { zh: '南海', en: 'SOUTH CHINA SEA', lon: 115.5, lat: 18.5 } ],
@@ -277,6 +278,23 @@ const LV = {
                  { zh: '裏海', en: 'CASPIAN', lon: 50.8, lat: 41.4 }, { zh: '紅海', en: 'RED SEA', lon: 38.6, lat: 20.2 },
                  { zh: '波斯灣', en: 'PERSIAN GULF', lon: 51.25, lat: 27.35, size: .62, rot: 33 }, { zh: '阿拉伯海', en: 'ARABIAN SEA', lon: 63.5, lat: 16.5 } ],
          labelFix: { '048': [0, -12], '634': [10, 8], '422': [-18, -2], '376': [-20, 8], '275': [18, -8], '400': [26, 22], '196': [0, -10], '414': [0, -6], '784': [6, 4], '051': [-4, 4], '268': [0, -4] } },
+  ne:  { cont: 'europe', zh: { region: '北歐', title: '北歐地形拼圖' }, en: { region: 'Northern Europe', title: 'Northern Europe Terrain Puzzle' },
+         seas: [ { zh: '北海', en: 'NORTH SEA', lon: 3.5, lat: 56.6 }, { zh: '波羅的海', en: 'BALTIC SEA', lon: 19.6, lat: 55.7, size: .8 },
+                 { zh: '挪威海', en: 'NORWEGIAN SEA', lon: 2.5, lat: 66.5 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -17.5, lat: 57 } ],
+         labelFix: { '208': [-4, 2] } },
+  we:  { cont: 'europe', zh: { region: '西歐', title: '西歐地形拼圖' }, en: { region: 'Western Europe', title: 'Western Europe Terrain Puzzle' },
+         seas: [ { zh: '北海', en: 'NORTH SEA', lon: 3.6, lat: 54.4 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -4.0, lat: 46.0 },
+                 { zh: '地中海', en: 'MEDITERRANEAN', lon: 5.2, lat: 42.3, size: .8 } ],
+         labelFix: { '492': [12, 10], '438': [14, -6], '442': [-2, -10], '056': [-6, 2], '528': [0, -2] } },
+  se:  { cont: 'europe', zh: { region: '南歐', title: '南歐地形拼圖' }, en: { region: 'Southern Europe', title: 'Southern Europe Terrain Puzzle' },
+         seas: [ { zh: '地中海', en: 'MEDITERRANEAN', lon: 5.0, lat: 38.4 }, { zh: '亞得里亞海', en: 'ADRIATIC', lon: 16.1, lat: 42.6, size: .58, rot: 33 },
+                 { zh: '愛琴海', en: 'AEGEAN', lon: 25.0, lat: 39.3, size: .62 } ],
+         labelFix: { '336': [-18, 12], '674': [14, -6], '020': [0, -10], '470': [0, 14], 'Kosovo': [8, -4], '499': [-16, 6], '008': [-8, 12],
+                     '807': [12, 8], '705': [-4, -6], '191': [-14, 10], '688': [6, 0] } },
+  ee:  { cont: 'europe', zh: { region: '東歐', title: '東歐地形拼圖' }, en: { region: 'Eastern Europe', title: 'Eastern Europe Terrain Puzzle' },
+         seas: [ { zh: '黑海', en: 'BLACK SEA', lon: 34.5, lat: 43.4 }, { zh: '裏海', en: 'CASPIAN', lon: 50.6, lat: 43.2 },
+                 { zh: '波羅的海', en: 'BALTIC SEA', lon: 19.4, lat: 56.0, size: .75 }, { zh: '白海', en: 'WHITE SEA', lon: 38.6, lat: 65.6, size: .7 } ],
+         labelFix: { '498': [6, 0] } },
 };
 
 const INFO = {
@@ -333,19 +351,71 @@ const INFO = {
   '634': { zh: '卡達', en: 'Qatar', capZh: '杜哈', capEn: 'Doha', flag: 'qa' },
   '048': { zh: '巴林', en: 'Bahrain', capZh: '麥納瑪', capEn: 'Manama', flag: 'bh' },
   '414': { zh: '科威特', en: 'Kuwait', capZh: '科威特市', capEn: 'Kuwait City', flag: 'kw' },
+  '826': { zh: '英國', en: 'United Kingdom', capZh: '倫敦', capEn: 'London', flag: 'gb' },
+  '372': { zh: '愛爾蘭', en: 'Ireland', capZh: '都柏林', capEn: 'Dublin', flag: 'ie' },
+  '352': { zh: '冰島', en: 'Iceland', capZh: '雷克雅維克', capEn: 'Reykjavík', flag: 'is' },
+  '578': { zh: '挪威', en: 'Norway', capZh: '奧斯陸', capEn: 'Oslo', flag: 'no' },
+  '752': { zh: '瑞典', en: 'Sweden', capZh: '斯德哥爾摩', capEn: 'Stockholm', flag: 'se' },
+  '246': { zh: '芬蘭', en: 'Finland', capZh: '赫爾辛基', capEn: 'Helsinki', flag: 'fi' },
+  '208': { zh: '丹麥', en: 'Denmark', capZh: '哥本哈根', capEn: 'Copenhagen', flag: 'dk' },
+  '233': { zh: '愛沙尼亞', en: 'Estonia', capZh: '塔林', capEn: 'Tallinn', flag: 'ee' },
+  '428': { zh: '拉脫維亞', en: 'Latvia', capZh: '里加', capEn: 'Riga', flag: 'lv' },
+  '440': { zh: '立陶宛', en: 'Lithuania', capZh: '維爾紐斯', capEn: 'Vilnius', flag: 'lt' },
+  '250': { zh: '法國', en: 'France', capZh: '巴黎', capEn: 'Paris', flag: 'fr' },
+  '528': { zh: '荷蘭', en: 'Netherlands', capZh: '阿姆斯特丹', capEn: 'Amsterdam', flag: 'nl' },
+  '056': { zh: '比利時', en: 'Belgium', capZh: '布魯塞爾', capEn: 'Brussels', flag: 'be' },
+  '442': { zh: '盧森堡', en: 'Luxembourg', capZh: '盧森堡', capEn: 'Luxembourg', flag: 'lu' },
+  '492': { zh: '摩納哥', en: 'Monaco', capZh: '摩納哥', capEn: 'Monaco', flag: 'mc' },
+  '276': { zh: '德國', en: 'Germany', capZh: '柏林', capEn: 'Berlin', flag: 'de' },
+  '756': { zh: '瑞士', en: 'Switzerland', capZh: '伯恩', capEn: 'Bern', flag: 'ch' },
+  '438': { zh: '列支敦斯登', en: 'Liechtenstein', capZh: '瓦杜茲', capEn: 'Vaduz', flag: 'li' },
+  '040': { zh: '奧地利', en: 'Austria', capZh: '維也納', capEn: 'Vienna', flag: 'at' },
+  '620': { zh: '葡萄牙', en: 'Portugal', capZh: '里斯本', capEn: 'Lisbon', flag: 'pt' },
+  '724': { zh: '西班牙', en: 'Spain', capZh: '馬德里', capEn: 'Madrid', flag: 'es' },
+  '020': { zh: '安道爾', en: 'Andorra', capZh: '安道爾城', capEn: 'Andorra la Vella', flag: 'ad' },
+  '380': { zh: '義大利', en: 'Italy', capZh: '羅馬', capEn: 'Rome', flag: 'it' },
+  '674': { zh: '聖馬利諾', en: 'San Marino', capZh: '聖馬利諾', capEn: 'San Marino', flag: 'sm' },
+  '336': { zh: '梵蒂岡', en: 'Vatican City', capZh: '梵蒂岡', capEn: 'Vatican City', flag: 'va' },
+  '470': { zh: '馬爾他', en: 'Malta', capZh: '瓦勒他', capEn: 'Valletta', flag: 'mt' },
+  '300': { zh: '希臘', en: 'Greece', capZh: '雅典', capEn: 'Athens', flag: 'gr' },
+  '705': { zh: '斯洛維尼亞', en: 'Slovenia', capZh: '盧比安納', capEn: 'Ljubljana', flag: 'si' },
+  '191': { zh: '克羅埃西亞', en: 'Croatia', capZh: '札格瑞布', capEn: 'Zagreb', flag: 'hr' },
+  '070': { zh: '波士尼亞與赫塞哥維納', en: 'Bosnia and Herzegovina', capZh: '塞拉耶佛', capEn: 'Sarajevo', flag: 'ba' },
+  '688': { zh: '塞爾維亞', en: 'Serbia', capZh: '貝爾格勒', capEn: 'Belgrade', flag: 'rs' },
+  '499': { zh: '蒙特內哥羅', en: 'Montenegro', capZh: '波德里查', capEn: 'Podgorica', flag: 'me' },
+  'Kosovo': { zh: '科索沃', en: 'Kosovo', capZh: '普里斯提納', capEn: 'Pristina', flag: 'xk',
+              noteZh: '2008 年宣布脫離塞爾維亞獨立；塞爾維亞與部分國家不承認', noteEn: 'Declared independence from Serbia in 2008; Serbia and some countries do not recognise it' },
+  '807': { zh: '北馬其頓', en: 'North Macedonia', capZh: '史高比耶', capEn: 'Skopje', flag: 'mk' },
+  '008': { zh: '阿爾巴尼亞', en: 'Albania', capZh: '地拉那', capEn: 'Tirana', flag: 'al' },
+  '643': { zh: '俄羅斯', en: 'Russia', capZh: '莫斯科', capEn: 'Moscow', flag: 'ru',
+           noteZh: '這裡只拼歐洲的部分，大約是烏拉山以西', noteEn: 'Only the European part, roughly west of the Urals, is in this puzzle' },
+  '804': { zh: '烏克蘭', en: 'Ukraine', capZh: '基輔', capEn: 'Kyiv', flag: 'ua',
+           noteZh: '依聯合國大會的立場，克里米亞畫在烏克蘭境內', noteEn: 'Crimea is drawn in Ukraine, following the UN General Assembly position' },
+  '112': { zh: '白俄羅斯', en: 'Belarus', capZh: '明斯克', capEn: 'Minsk', flag: 'by' },
+  '498': { zh: '摩爾多瓦', en: 'Moldova', capZh: '奇西瑙', capEn: 'Chișinău', flag: 'md' },
+  '616': { zh: '波蘭', en: 'Poland', capZh: '華沙', capEn: 'Warsaw', flag: 'pl' },
+  '203': { zh: '捷克', en: 'Czechia', capZh: '布拉格', capEn: 'Prague', flag: 'cz' },
+  '703': { zh: '斯洛伐克', en: 'Slovakia', capZh: '布拉提斯拉瓦', capEn: 'Bratislava', flag: 'sk' },
+  '348': { zh: '匈牙利', en: 'Hungary', capZh: '布達佩斯', capEn: 'Budapest', flag: 'hu' },
+  '642': { zh: '羅馬尼亞', en: 'Romania', capZh: '布加勒斯特', capEn: 'Bucharest', flag: 'ro' },
+  '100': { zh: '保加利亞', en: 'Bulgaria', capZh: '索菲亞', capEn: 'Sofia', flag: 'bg' },
 };
-const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'], AF: ['阿富汗', 'Afghanistan'], IR: ['伊朗', 'Iran'], MM: ['緬甸', 'Myanmar'], TJ: ['塔吉克', 'Tajikistan'], RU: ['俄羅斯', 'Russia'], KZ: ['哈薩克', 'Kazakhstan'], VN: ['越南', 'Vietnam'], PH: ['菲律賓', 'Philippines'], MN: ['蒙古', 'Mongolia'], AZ: ['亞塞拜然', 'Azerbaijan'], EG: ['埃及', 'Egypt'], PK: ['巴基斯坦', 'Pakistan'], TM: ['土庫曼', 'Turkmenistan'], SD: ['蘇丹', 'Sudan'], GR: ['希臘', 'Greece'] };
+const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'], AF: ['阿富汗', 'Afghanistan'], IR: ['伊朗', 'Iran'], MM: ['緬甸', 'Myanmar'], TJ: ['塔吉克', 'Tajikistan'], RU: ['俄羅斯', 'Russia'], KZ: ['哈薩克', 'Kazakhstan'], VN: ['越南', 'Vietnam'], PH: ['菲律賓', 'Philippines'], MN: ['蒙古', 'Mongolia'], AZ: ['亞塞拜然', 'Azerbaijan'], EG: ['埃及', 'Egypt'], PK: ['巴基斯坦', 'Pakistan'], TM: ['土庫曼', 'Turkmenistan'], SD: ['蘇丹', 'Sudan'], GR: ['希臘', 'Greece'], BY: ['白俄羅斯', 'Belarus'], PL: ['波蘭', 'Poland'], DE: ['德國', 'Germany'], FR: ['法國', 'France'], NL: ['荷蘭', 'Netherlands'],
+  GB: ['英國', 'United Kingdom'], IT: ['義大利', 'Italy'], ES: ['西班牙', 'Spain'], CZ: ['捷克', 'Czechia'], DK: ['丹麥', 'Denmark'], CH: ['瑞士', 'Switzerland'],
+  AT: ['奧地利', 'Austria'], HU: ['匈牙利', 'Hungary'], RO: ['羅馬尼亞', 'Romania'], BG: ['保加利亞', 'Bulgaria'], TR: ['土耳其', 'Türkiye'], DZ: ['阿爾及利亞', 'Algeria'],
+  TN: ['突尼西亞', 'Tunisia'], MA: ['摩洛哥', 'Morocco'], RS: ['塞爾維亞', 'Serbia'], GE: ['喬治亞', 'Georgia'], FI: ['芬蘭', 'Finland'], LT: ['立陶宛', 'Lithuania'],
+  LV: ['拉脫維亞', 'Latvia'], EE: ['愛沙尼亞', 'Estonia'], SE: ['瑞典', 'Sweden'] };
 const T = {
   zh: { sub: n => `${n} 個國家`, done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
         trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
-        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', contDone: (d, n) => `完成 ${d} / ${n} 區`,
+        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
         il: ['按住拼圖，拖到地圖上。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
         empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
-        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', contDone: (d, n) => `${d} of ${n} done`,
+        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
         il: ['Press and drag a piece onto the map.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
@@ -362,26 +432,30 @@ const store = {
 
 let lang = store.get('sea-lang', 'zh');
 let soundOn = store.get('sea-sound', true);
-let level = LEVELS_DATA[store.get('geo-level', 'sea')] ? store.get('geo-level', 'sea') : 'sea';
-let MAP, W, H, byId, TARGETS, vb = [0, 0, 1, 1];
+let level = LEVEL_META[store.get('geo-level', 'sea')] ? store.get('geo-level', 'sea') : 'sea';
+let MAP, W, H, byId, TARGETS, vb = [0, 0, 1, 1], lastZ = 1, relabelRaf = 0;
 
 /* ---------- build the map for a region ---------- */
 const svg = $('map'), defs = $('defs');
-const terrainURLs = {};
-function loadLevel(id) {
+const mapCache = {};
+function fetchLevel(id) {
+  if (!mapCache[id]) {
+    const json = fetch(`data/${id}.json`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    const img = new Promise((ok, fail) => { const i = new Image(); i.onload = ok; i.onerror = fail; i.src = `data/${id}.jpg`; });
+    mapCache[id] = Promise.all([json, img]).then(([m]) => m).catch(e => { delete mapCache[id]; throw e; });
+  }
+  return mapCache[id];
+}
+async function loadLevel(id) {
+  const data = await fetchLevel(id);
   if (drag) onPieceCancel();
   level = id; store.set('geo-level', id);
-  MAP = LEVELS_DATA[id].map; W = MAP.W; H = MAP.H;
+  MAP = data; W = MAP.W; H = MAP.H;
   byId = {}; MAP.countries.forEach(c => byId[c.id] = c);
   TARGETS = MAP.countries.filter(c => c.target).map(c => c.id);
-  if (!terrainURLs[id]) {
-    const bin = atob(LEVELS_DATA[id].terrain); const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    terrainURLs[id] = URL.createObjectURL(new Blob([arr], { type: 'image/jpeg' }));
-  }
   defs.querySelectorAll('[data-dyn]').forEach(n => n.remove());
   $('landClip').textContent = ''; $('gVeil').textContent = ''; $('gLines').textContent = '';
-  const img = $('terrainImg'); img.setAttribute('href', terrainURLs[id]); img.setAttribute('width', W); img.setAttribute('height', H);
+  const img = $('terrainImg'); img.setAttribute('href', `data/${id}.jpg`); img.setAttribute('width', W); img.setAttribute('height', H);
   $('rivMajor').setAttribute('d', MAP.riversMajor); $('rivMinor').setAttribute('d', MAP.riversMinor);
   const oc = $('ocean'); oc.setAttribute('width', W + 4000); oc.setAttribute('height', H + 4000);
   for (const c of MAP.countries) {
@@ -397,12 +471,22 @@ function loadLevel(id) {
   const ramp = MAP.legend; $('ramp').style.background = `linear-gradient(90deg, ${ramp.map((c, i) => `${c} ${Math.round(i / (ramp.length - 1) * 100)}%`).join(', ')})`;
 }
 
+// lon/lat -> map units, in the same projection the map data was drawn in
+function projLL(lon, lat) {
+  const p = MAP.proj;
+  if (p.type === 'lcc') {
+    const phi = lat * Math.PI / 180, lam = lon * Math.PI / 180;
+    const rho = p.R * p.F / Math.pow(Math.tan(Math.PI / 4 + phi / 2), p.n), th = p.n * (lam - p.lam0);
+    return [rho * Math.sin(th) - p.xmin, p.ymax - (p.rho0 - rho * Math.cos(th))];
+  }
+  return [(lon - p.lon0) * p.kx, (p.lat1 - lat) * p.ky];
+}
 function drawLabels() {
   const g = $('gLabels'); g.textContent = '';
   const gs = $('gSea'); gs.textContent = '';
-  for (const s of LV[level].seas) { const [sx, sy] = s.lon != null ? [(s.lon - MAP.proj[0]) * MAP.proj[2], (MAP.proj[1] - s.lat) * MAP.proj[3]] : [s.x + MAP.view[0], s.y + MAP.view[1]];
+  for (const s of LV[level].seas) { const [sx, sy] = s.lon != null ? projLL(s.lon, s.lat) : [s.x + MAP.view[0], s.y + MAP.view[1]];
     const t = mk('text', { x: sx, y: sy, class: 'lbl sea' }, gs);
-    if (s.size) { t.style.fontSize = `calc(${17 * s.size}px / var(--z, 1))`; t.style.letterSpacing = '.12em'; }
+    if (s.size) { t.style.fontSize = `calc(${16 * s.size}px / var(--z, 1))`; t.style.letterSpacing = '.12em'; }
     if (s.rot) t.setAttribute('transform', `rotate(${s.rot} ${sx} ${sy})`); t.textContent = lang === 'zh' ? s.zh : s.en; if (lang === 'en') t.style.letterSpacing = '.2em'; }
   for (const c of MAP.countries) {
     if (c.ctx && !(LV[level].hideCtx || []).includes(c.ctx)) {
@@ -414,11 +498,29 @@ function drawLabels() {
   }
   for (const id of state.placed) placeLabel(id, g);
 }
+const OFFSETS = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0]];
 function placeLabel(id, g = $('gLabels')) {
   const c = byId[id], info = INFO[id], f = LV[level].labelFix[id] || [0, 0];
-  const t = mk('text', { x: c.label[0] + f[0], y: c.label[1] + f[1], class: 'lbl place' }, g);
-  t.textContent = lang === 'zh' ? info.zh : info.en;
-  if (lang === 'zh') { const s = mk('tspan', { x: c.label[0] + f[0], dy: '1.2em', class: 'en' }, t); s.textContent = info.en; }
+  const x0 = c.label[0] + f[0], y0 = c.label[1] + f[1];
+  const t = mk('text', { x: x0, y: y0, class: 'lbl place', 'data-id': id }, g);
+  t.appendChild(document.createTextNode(lang === 'zh' ? info.zh : info.en));
+  let en = null;
+  if (lang === 'zh') { en = mk('tspan', { x: x0, dy: '1.2em', class: 'en' }, t); en.textContent = info.en; }
+  // try a few nearby spots; if all collide, drop the English line and try again
+  const others = [...g.querySelectorAll('text.place')].filter(o => o !== t).map(o => o.getBoundingClientRect());
+  const hits = () => { const r = t.getBoundingClientRect(); return others.some(o => r.left < o.right - 1 && r.right > o.left + 1 && r.top < o.bottom - 1 && r.bottom > o.top + 1); };
+  const step = 15 / (parseFloat(svg.style.getPropertyValue('--z')) || 1);
+  const tryAll = () => {
+    for (const [dx, dy] of OFFSETS) {
+      t.setAttribute('x', x0 + dx * step * 1.6); t.setAttribute('y', y0 + dy * step);
+      if (en) en.setAttribute('x', x0 + dx * step * 1.6);
+      if (!hits()) return true;
+    }
+    return false;
+  };
+  if (!others.length || tryAll()) return;
+  if (en) { en.remove(); en = null; if (tryAll()) return; }
+  t.setAttribute('x', x0); t.setAttribute('y', y0);
 }
 
 /* ---------- view / zoom / pan ---------- */
@@ -430,7 +532,9 @@ function setView(x, y, w) {
   const A = boxAspect(); w = clampW(w); const h = w / A;
   x = Math.min(W - w, Math.max(0, x)); y = Math.min(H - h, Math.max(0, y));
   vb = [x, y, w, h]; svg.setAttribute('viewBox', vb.join(' '));
-  svg.style.setProperty('--z', Math.pow(Math.max(1, MAP.view[2] / w), .75));
+  const ctm = svg.getScreenCTM(), z = ctm && ctm.a > 0 ? ctm.a : 1;
+  svg.style.setProperty('--z', z);
+  if (state && Math.abs(z - lastZ) / lastZ > .04) { lastZ = z; cancelAnimationFrame(relabelRaf); relabelRaf = requestAnimationFrame(drawLabels); }
 }
 function fitView() {
   const A = boxAspect(), [vx, vy, vw, vh] = MAP.view;
@@ -479,10 +583,32 @@ function sfx(kind) {
   else if (kind === 'bad') { tone(220, t, .22, 'square', .07, 140); tone(110, t, .25, 'sine', .16, 80); }
   else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i * .11, .3, 'triangle', .17)); }
 }
+/* spoken country names: Chinese first, then English, after the chime */
+const tts = 'speechSynthesis' in window ? window.speechSynthesis : null;
+function pickVoice(prefixes) {
+  const vs = tts ? tts.getVoices() : [];
+  for (const pre of prefixes) {
+    const v = vs.find(v => v.lang.replace('_', '-').toLowerCase().startsWith(pre));
+    if (v) return v;
+  }
+  return null;
+}
+if (tts && tts.addEventListener) tts.addEventListener('voiceschanged', () => {});
+function sayName(i) {
+  if (!soundOn || !tts) return;
+  try {
+    tts.cancel();
+    const zh = new SpeechSynthesisUtterance(i.zh); zh.lang = 'zh-TW'; zh.rate = .95;
+    const vz = pickVoice(['zh-tw', 'zh-hant', 'cmn-hant', 'zh']); if (vz) zh.voice = vz;
+    const en = new SpeechSynthesisUtterance(i.en); en.lang = 'en-US'; en.rate = .95;
+    const ve = pickVoice(['en-us', 'en-gb', 'en']); if (ve) en.voice = ve;
+    setTimeout(() => { tts.speak(zh); tts.speak(en); }, 380);
+  } catch (e) {}
+}
 const ICON_ON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z" fill="currentColor" stroke="none"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z" fill="currentColor" stroke="none"/><path d="M11 6l4 4M15 6l-4 4"/></svg>';
 function renderSound() { $('btnSound').innerHTML = soundOn ? ICON_ON : ICON_OFF; $('btnSound').setAttribute('aria-pressed', soundOn); }
-$('btnSound').onclick = () => { soundOn = !soundOn; store.set('sea-sound', soundOn); renderSound(); if (soundOn) sfx('ok'); };
+$('btnSound').onclick = () => { soundOn = !soundOn; store.set('sea-sound', soundOn); renderSound(); if (soundOn) sfx('ok'); else if (tts) tts.cancel(); };
 
 /* ---------- game state ---------- */
 let state;
@@ -637,7 +763,7 @@ function correct(id, g) {
   const n = state.tries[id]; const pts = Math.max(0, 4 - n); state.score += pts;
   const c = byId[id]; const ctm = svg.getScreenCTM(); const p = new DOMPoint(c.bbox[0], c.bbox[1]).matrixTransform(ctm);
   g.classList.add('anim'); place(g, p.x, p.y, c.bbox[2] * ctm.a, c.bbox[3] * ctm.a);
-  sfx('ok');
+  sfx('ok'); sayName(INFO[id]);
   setTimeout(() => {
     g.remove();
     state.placed.push(id);
@@ -688,7 +814,7 @@ function renderResult(stars, missed, bt, bs) {
 /* ---------- language ---------- */
 function applyLang() {
   const t = T[lang]; document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
-  $('t-title').textContent = LV[level][lang].title; $('t-sub').textContent = t.sub(TARGETS.length); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
+  $('t-title').textContent = LV[level][lang].title; $('t-sub').textContent = t.sub(LEVEL_META[level].n); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
   $('t-restart').textContent = t.restart; $('t-tray').textContent = t.tray; $('t-trayhint').textContent = t.trayhint;
   $('t-elev').textContent = t.elev; $('t-elev2').textContent = t.elev2;
   $('ticks').innerHTML = t.ticks.map(s => `<span>${s}</span>`).join('');
@@ -696,18 +822,18 @@ function applyLang() {
   $('zIn').setAttribute('aria-label', t.zin); $('zOut').setAttribute('aria-label', t.zout); $('zFit').setAttribute('aria-label', t.fit);
   $('i-h').textContent = t.ih; $('i-p').textContent = t.ip; $('i-list').innerHTML = t.il.map(s => `<li>${s}</li>`).join('');
   renderLevels();
-  renderTray(); drawLabels(); $('card').hidden = true;
+  if (state) { renderTray(); drawLabels(); } $('card').hidden = true;
 }
 function renderLevels() {
   const t = T[lang], box = $('levels'); box.textContent = '';
   for (const cid of Object.keys(CONTINENTS)) {
-    const ids = Object.keys(LV).filter(id => LV[id].cont === cid && LEVELS_DATA[id]);
+    const ids = Object.keys(LV).filter(id => LV[id].cont === cid && LEVEL_META[id]);
     const done = ids.filter(id => store.get(id + '-best', null)).length;
     const head = document.createElement('div'); head.className = 'conthead';
     head.innerHTML = `<b>${CONTINENTS[cid][lang]}</b><span>${t.contDone(done, ids.length)}</span>`;
     box.appendChild(head);
     for (const id of ids) {
-      const n = LEVELS_DATA[id].map.countries.filter(c => c.target).length, best = store.get(id + '-best', null);
+      const n = LEVEL_META[id].n, best = store.get(id + '-best', null);
       const b = document.createElement('button'); b.className = 'lvl' + (id === level ? ' cur' : ''); b.id = 'lvl-' + id;
       b.innerHTML = `<b>${LV[id][lang].region}</b><span>${t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
       b.onclick = () => startLevel(id);
@@ -719,13 +845,20 @@ function openLevels(fromGame) {
   if (drag) onPieceCancel();
   $('backRow').hidden = !fromGame; renderLevels(); $('intro').hidden = false;
 }
-function startLevel(id) {
-  loadLevel(id); newGame(); applyLang();
-  $('intro').hidden = true; sfx('ok');
+let loading = false;
+async function startLevel(id) {
+  if (loading) return; loading = true;
+  const b = $('lvl-' + id), em = b && b.querySelector('em'); if (em) em.textContent = T[lang].loadingMap;
+  try {
+    await loadLevel(id); newGame(); applyLang();
+    $('intro').hidden = true; sfx('ok');
+  } catch (e) {
+    if (em) em.textContent = T[lang].loadFail;
+  } finally { loading = false; }
 }
 $('btnLang').onclick = () => { lang = lang === 'zh' ? 'en' : 'zh'; store.set('sea-lang', lang); applyLang(); };
 $('btnRestart').onclick = () => { $('result').hidden = true; newGame(); };
-$('btnLevels').onclick = () => openLevels(state.started && !state.finished);
+$('btnLevels').onclick = () => openLevels(!!state && state.started && !state.finished);
 $('btnBack').onclick = () => { $('intro').hidden = true; };
 document.addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('input,textarea')) return;
@@ -734,5 +867,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'l' || e.key === 'L') $('btnLang').click();
 });
 
-loadLevel(level); newGame(); renderSound(); applyLang();
+renderSound(); applyLang();
+loadLevel(level).then(() => { newGame(); applyLang(); }).catch(() => {});   // the map behind the region picker
 </script>
