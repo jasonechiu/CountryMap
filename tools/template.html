@@ -1,0 +1,598 @@
+<title>東南亞地形拼圖</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-screen atlas table. Status bar on top, map sheet on the left, a tray of terrain pieces on the right. */
+:root {
+  --paper: #f3f5f2;        /* chrome background, faint green-teal bias */
+  --sheet: #ffffff;        /* cards and tray */
+  --ink: #1d3336;          /* primary text, deep teal-ink */
+  --ink-soft: #5b7276;     /* secondary text */
+  --rule: #d6dfdc;         /* hairlines */
+  --sienna: #9a5b23;       /* accent, taken from the terrain's mountain brown */
+  --sienna-tint: #f4e7da;
+  --good: #2f8a3e;
+  --bad: #b8433a;
+  --ocean-a: #9fdde0;      /* map ocean, light centre */
+  --ocean-b: #3fa9b7;      /* map ocean, deep edge */
+  --slot: rgba(255,255,255,.42);
+  --slot-line: #24555d;
+  --veil: rgba(243,245,242,.30);
+  --shadow: 0 10px 28px rgba(16,40,44,.18);
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121c1e; --sheet: #1a2729; --ink: #e5eeec; --ink-soft: #9db1b2; --rule: #2c3d40;
+  --sienna: #e0a061; --sienna-tint: #3a2b1d; --good: #6cc47a; --bad: #ef7d72;
+  --ocean-a: #6cbfc6; --ocean-b: #257f8c; --slot: rgba(255,255,255,.30); --slot-line: #10363c;
+  --veil: rgba(18,28,30,.28); --shadow: 0 10px 28px rgba(0,0,0,.45); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121c1e; --sheet: #1a2729; --ink: #e5eeec; --ink-soft: #9db1b2; --rule: #2c3d40;
+  --sienna: #e0a061; --sienna-tint: #3a2b1d; --good: #6cc47a; --bad: #ef7d72;
+  --ocean-a: #6cbfc6; --ocean-b: #257f8c; --slot: rgba(255,255,255,.30); --slot-line: #10363c;
+  --veil: rgba(18,28,30,.28); --shadow: 0 10px 28px rgba(0,0,0,.45); color-scheme: dark }
+
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; gap: 12px; padding-block: 12px; box-sizing: border-box; }
+
+/* status bar */
+.bar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.brand .sub { color: var(--ink-soft); font-size: 13px; }
+.stats { display: flex; gap: 18px; margin-left: auto; align-items: center; }
+.stat { display: grid; gap: 1px; }
+.stat .k { font-size: 11px; letter-spacing: .08em; color: var(--ink-soft); text-transform: uppercase; }
+.stat .v { font-family: var(--font-data); font-size: 18px; font-variant-numeric: tabular-nums; }
+.tools { display: flex; gap: 6px; }
+.tool { height: 34px; min-width: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--rule); background: var(--sheet);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; }
+.tool:hover { border-color: var(--ink-soft); }
+.tool svg { width: 16px; height: 16px; }
+.progress { width: 120px; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--good); transition: width .3s; }
+
+/* table */
+.table { display: grid; grid-template-columns: minmax(0, 1fr) 292px; gap: 12px; min-height: 0; }
+.mapwrap { position: relative; border-radius: 10px; overflow: hidden; background: var(--ocean-b); min-height: 0; }
+#map { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#map.panning { cursor: grabbing; }
+.slot { fill: var(--slot); stroke: var(--slot-line); stroke-width: 1.1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.slot.done { display: none; }
+.ctxveil { fill: var(--veil); }
+.ctxline { fill: none; stroke: rgba(30,50,50,.35); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.placedline { fill: none; stroke: rgba(255,255,255,.85); stroke-width: .9; vector-effect: non-scaling-stroke; }
+.flash { fill: none; stroke: #fff; stroke-width: 3.5; vector-effect: non-scaling-stroke; animation: flash 1.1s ease-out forwards; }
+@keyframes flash { from { opacity: 1 } to { opacity: 0 } }
+.hit { fill: transparent; cursor: help; }
+.riv-major { fill: none; stroke: #2f88c9; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+.riv-minor { fill: none; stroke: #3b93cf; stroke-width: .7; stroke-linecap: round; opacity: .75; }
+.lbl { font-family: var(--font-body); paint-order: stroke; stroke-linejoin: round; text-anchor: middle; pointer-events: none; }
+.lbl.ctx { font-size: calc(12px / var(--z, 1)); fill: #4c5f5f; stroke: rgba(255,255,255,.75); stroke-width: calc(3px / var(--z, 1)); letter-spacing: .1em; }
+.lbl.sea { font-family: var(--font-display); font-size: calc(17px / var(--z, 1)); fill: rgba(16,70,80,.55); letter-spacing: .5em; font-weight: 600; }
+.lbl.place { font-size: calc(12.5px / var(--z, 1)); font-weight: 700; fill: #1d2b22; stroke: rgba(255,255,255,.88); stroke-width: calc(3.2px / var(--z, 1)); }
+.lbl.place .en { font-weight: 500; font-size: calc(10px / var(--z, 1)); }
+
+.zoom { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: 12px; display: grid; gap: 4px; }
+.zoom button { width: 34px; height: 34px; border-radius: 8px; border: 0; background: rgba(255,255,255,.9); color: #1d3336; box-shadow: 0 1px 4px rgba(0,0,0,.18); font-size: 18px; line-height: 1; }
+.legend { position: absolute; right: 12px; bottom: 12px; background: rgba(255,255,255,.9); color: #1d3336; border-radius: 8px; padding: 9px 12px 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.16); display: grid; gap: 5px; width: 220px; }
+.legend .t { font-size: 11px; letter-spacing: .08em; font-weight: 700; display: flex; justify-content: space-between; }
+.legend .t span { font-weight: 400; color: #5b7276; letter-spacing: 0; }
+.legend .ramp { height: 10px; border-radius: 2px; }
+.legend .ticks { display: grid; grid-template-columns: repeat(4, 1fr); font-size: 11px; color: #3f5558; }
+.legend .ticks span:nth-child(n+2) { text-align: center; } .legend .ticks span:last-child { text-align: right; }
+
+/* knowledge card */
+.card { position: absolute; left: 12px; top: 12px; width: 268px; background: var(--sheet); color: var(--ink); border-radius: 10px; box-shadow: var(--shadow);
+  padding: 14px 16px 14px; display: grid; gap: 10px; transform-origin: top left; animation: pop .22s ease-out; }
+@keyframes pop { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
+.card .head { display: grid; grid-template-columns: 60px 1fr auto; gap: 12px; align-items: center; }
+.card img { width: 60px; height: 45px; border-radius: 3px; box-shadow: 0 0 0 1px var(--rule); object-fit: cover; }
+.card .zh { font-family: var(--font-display); font-size: 22px; font-weight: 700; line-height: 1.15; }
+.card .en { font-size: 13px; color: var(--ink-soft); }
+.card .x { border: 0; background: none; color: var(--ink-soft); font-size: 18px; align-self: start; padding: 0 2px; }
+.card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+.card dt { color: var(--ink-soft); }
+.card dd { margin: 0; }
+.card .pts { font-size: 13px; color: var(--good); font-weight: 700; border-top: 1px solid var(--rule); padding-top: 8px; }
+
+.toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--bad); color: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; box-shadow: var(--shadow); }
+
+.tip { position: fixed; pointer-events: none; background: #1d3336; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; z-index: 30; white-space: nowrap; }
+
+/* tray */
+.tray { background: var(--sheet); border-radius: 10px; border: 1px solid var(--rule); display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+.tray header { padding: 12px 14px 10px; border-bottom: 1px solid var(--rule); display: grid; gap: 2px; }
+.tray header b { font-size: 14px; }
+.tray header small { color: var(--ink-soft); font-size: 12px; }
+.pieces { overflow-y: auto; padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+.piece { border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); padding: 6px 6px 7px; display: grid; gap: 4px; justify-items: center;
+  cursor: grab; touch-action: none; position: relative; }
+.piece:hover { border-color: var(--sienna); background: var(--sienna-tint); }
+.piece.lifted { opacity: .25; }
+.piece svg { width: 100%; height: 78px; display: block; overflow: visible; }
+.piece .nm { font-size: 14px; font-weight: 700; line-height: 1.1; text-align: center; }
+.piece .nm small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-soft); }
+.piece .miss { position: absolute; top: 5px; right: 6px; font-size: 11px; color: var(--bad); font-weight: 700; font-family: var(--font-data); }
+.piece-shape { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.35)); }
+.empty-tray { grid-column: 1 / -1; color: var(--ink-soft); font-size: 13px; text-align: center; padding: 24px 8px; }
+
+.ghost { position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; overflow: visible; filter: drop-shadow(0 8px 10px rgba(0,0,0,.35)); opacity: .9; }
+.ghost.anim { transition: transform .22s ease-out, width .22s ease-out, height .22s ease-out, opacity .22s; }
+.ghost.shake { animation: shake .28s; }
+@keyframes shake { 25% { translate: -6px 0 } 75% { translate: 6px 0 } }
+
+/* overlays */
+.veil { position: fixed; inset: 0; background: rgba(12,28,30,.42); display: grid; place-items: center; z-index: 40; padding: 16px; }
+.dialog { background: var(--sheet); color: var(--ink); border-radius: 14px; box-shadow: var(--shadow); width: min(460px, 100%); padding: 26px 28px 24px; display: grid; gap: 16px; max-height: 90vh; overflow: auto; }
+.dialog h2 { font-family: var(--font-display); font-size: 26px; margin: 0; text-wrap: balance; }
+.dialog p { margin: 0; line-height: 1.65; color: var(--ink-soft); }
+.dialog ol { margin: 0; padding-left: 1.3em; line-height: 1.8; }
+.primary { justify-self: start; border: 0; border-radius: 10px; background: var(--sienna); color: #fff; padding: 11px 22px; font-weight: 700; font-size: 15px; }
+:root[data-theme="dark"] .primary { color: #1b1209; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .primary { color: #1b1209; } }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.ghostbtn { border: 1px solid var(--rule); background: none; border-radius: 10px; padding: 10px 18px; }
+.stars { font-size: 30px; letter-spacing: 6px; color: var(--sienna); }
+.stars .off { color: var(--rule); }
+.res { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.res div { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+.res .k { font-size: 12px; color: var(--ink-soft); }
+.res .v { font-family: var(--font-data); font-size: 20px; font-variant-numeric: tabular-nums; }
+.res .best { font-size: 11px; color: var(--sienna); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { background: var(--sienna-tint); color: var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .app { height: auto; }
+  .table { grid-template-columns: 1fr; }
+  .mapwrap { aspect-ratio: 1.36; max-width: 100%; }
+  .tray { max-height: 360px; }
+  .pieces { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .stats { margin-left: 0; }
+  .legend { width: 170px; }
+  .card { width: 230px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="app">
+  <div class="bar">
+    <div class="brand"><h1 id="t-title">東南亞地形拼圖</h1><span class="sub" id="t-sub">11 個國家</span></div>
+    <div class="stats">
+      <div class="stat"><span class="k" id="t-done">完成</span><span class="v" id="vDone">0 / 11</span></div>
+      <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+      <div class="stat"><span class="k" id="t-time">時間</span><span class="v" id="vTime">0:00</span></div>
+      <div class="stat"><span class="k" id="t-score">分數</span><span class="v" id="vScore">0</span></div>
+    </div>
+    <div class="tools">
+      <button class="tool" id="btnSound" aria-label="音效開關" title="音效"></button>
+      <button class="tool" id="btnLang" title="中文 / English">EN</button>
+      <button class="tool" id="btnRestart"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8a5.5 5.5 0 1 1-1.8-4.1"/><path d="M12.5 1.5v3h-3"/></svg><span id="t-restart">重新開始</span></button>
+    </div>
+  </div>
+
+  <div class="table">
+    <div class="mapwrap" id="mapwrap">
+      <svg id="map" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+        <defs id="defs">
+          <radialGradient id="oceanGrad" cx="45%" cy="40%" r="75%">
+            <stop offset="0" stop-color="var(--ocean-a)"/><stop offset="1" stop-color="var(--ocean-b)"/>
+          </radialGradient>
+          <clipPath id="landClip"></clipPath>
+          <g id="terrainLayer">
+            <image id="terrainImg" x="0" y="0" preserveAspectRatio="none"/>
+            <path id="rivMinor" class="riv-minor"/>
+            <path id="rivMajor" class="riv-major"/>
+          </g>
+        </defs>
+        <rect id="ocean" x="-2000" y="-2000" fill="url(#oceanGrad)"/>
+        <g id="gSea"></g>
+        <g id="gSlots"></g>
+        <use href="#terrainLayer" clip-path="url(#landClip)"/>
+        <g id="gVeil"></g>
+        <g id="gLines"></g>
+        <g id="gHits"></g>
+        <g id="gLabels"></g>
+      </svg>
+      <div class="zoom">
+        <button id="zIn" aria-label="放大">+</button>
+        <button id="zOut" aria-label="縮小">−</button>
+        <button id="zFit" aria-label="全圖" style="font-size:12px">⤢</button>
+      </div>
+      <div class="legend" aria-label="海拔色階">
+        <div class="t"><b id="t-elev">海拔</b><span id="t-elev2">低 → 高</span></div>
+        <div class="ramp" id="ramp"></div>
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <div class="card" id="card" hidden></div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+
+    <aside class="tray">
+      <header><b id="t-tray">拼圖區</b><small id="t-trayhint">按住拖到地圖上的虛線位置</small></header>
+      <div class="pieces" id="pieces"></div>
+    </aside>
+  </div>
+</div>
+
+<div class="veil" id="intro">
+  <div class="dialog">
+    <h2 id="i-h">把東南亞拼回來</h2>
+    <p id="i-p">東南亞有 11 個國家。地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。</p>
+    <ol id="i-list"></ol>
+    <div class="row"><button class="primary" id="btnStart">開始</button><span id="i-best" style="color:var(--ink-soft);font-size:13px"></span></div>
+  </div>
+</div>
+<div class="veil" id="result" hidden>
+  <div class="dialog" id="resultBody"></div>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const MAP = __MAPDATA__;
+const TERRAIN_B64 = "__TERRAIN__";
+const FLAGS = __FLAGS__;
+
+const INFO = {
+  '704': { zh: '越南', en: 'Vietnam', capZh: '河內', capEn: 'Hanoi', flag: 'vn' },
+  '418': { zh: '寮國', en: 'Laos', capZh: '永珍', capEn: 'Vientiane', flag: 'la' },
+  '116': { zh: '柬埔寨', en: 'Cambodia', capZh: '金邊', capEn: 'Phnom Penh', flag: 'kh' },
+  '764': { zh: '泰國', en: 'Thailand', capZh: '曼谷', capEn: 'Bangkok', flag: 'th' },
+  '104': { zh: '緬甸', en: 'Myanmar', capZh: '奈比多', capEn: 'Naypyidaw', flag: 'mm' },
+  '458': { zh: '馬來西亞', en: 'Malaysia', capZh: '吉隆坡', capEn: 'Kuala Lumpur', flag: 'my' },
+  '702': { zh: '新加坡', en: 'Singapore', capZh: '新加坡', capEn: 'Singapore', flag: 'sg' },
+  '360': { zh: '印尼', en: 'Indonesia', capZh: '雅加達', capEn: 'Jakarta', flag: 'id' },
+  '608': { zh: '菲律賓', en: 'Philippines', capZh: '馬尼拉', capEn: 'Manila', flag: 'ph' },
+  '096': { zh: '汶萊', en: 'Brunei', capZh: '斯里巴卡旺', capEn: 'Bandar Seri Begawan', flag: 'bn' },
+  '626': { zh: '東帝汶', en: 'Timor-Leste', capZh: '帝力', capEn: 'Dili', flag: 'tl' },
+};
+const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'] };
+const SEAS = [ { zh: '太平洋', en: 'PACIFIC OCEAN', x: 930, y: 300 }, { zh: '印度洋', en: 'INDIAN OCEAN', x: 150, y: 690 }, { zh: '南海', en: 'SOUTH CHINA SEA', x: 470, y: 330 } ];
+const T = {
+  zh: { title: '東南亞地形拼圖', sub: '11 個國家', done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
+        trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
+        ih: '把東南亞拼回來', ip: '東南亞有 11 個國家。地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。',
+        il: ['按住拼圖，拖到地圖上。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
+        start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
+        doneH: '東南亞拼好了！', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
+        empty: '全部放好了', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
+  en: { title: 'Southeast Asia Terrain Puzzle', sub: '11 countries', done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
+        trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
+        ih: 'Put Southeast Asia back together', ip: 'Southeast Asia has 11 countries. The dashed lines on the map are their borders. Drag each piece to the right place.',
+        il: ['Press and drag a piece onto the map.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
+        start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
+        doneH: 'Southeast Asia is complete!', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
+        empty: 'All pieces placed', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map' },
+};
+
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs = {}, parent) => { const el = document.createElementNS(NS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); if (parent) parent.appendChild(el); return el; };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+
+let lang = store.get('sea-lang', 'zh');
+let soundOn = store.get('sea-sound', true);
+const W = MAP.W, H = MAP.H;
+let vb = [0, 0, W, H];
+const byId = {}; MAP.countries.forEach(c => byId[c.id] = c);
+const TARGETS = MAP.countries.filter(c => c.target).map(c => c.id);
+
+/* ---------- build the map once ---------- */
+const svg = $('map'), defs = $('defs');
+let terrainURL = '';
+(function buildMap() {
+  const bin = atob(TERRAIN_B64); const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  terrainURL = URL.createObjectURL(new Blob([arr], { type: 'image/jpeg' }));
+  const img = $('terrainImg'); img.setAttribute('href', terrainURL); img.setAttribute('width', W); img.setAttribute('height', H);
+  $('rivMajor').setAttribute('d', MAP.riversMajor); $('rivMinor').setAttribute('d', MAP.riversMinor);
+  const oc = $('ocean'); oc.setAttribute('width', W + 4000); oc.setAttribute('height', H + 4000);
+  for (const c of MAP.countries) {
+    mk('path', { id: 'c-' + c.id, d: c.d }, defs);
+    if (c.target) { const cp = mk('clipPath', { id: 'pc-' + c.id }, defs); mk('use', { href: '#c-' + c.id }, cp); }
+    else {
+      mk('use', { href: '#c-' + c.id }, $('landClip'));
+      mk('use', { href: '#c-' + c.id, class: 'ctxveil' }, $('gVeil'));
+      mk('use', { href: '#c-' + c.id, class: 'ctxline' }, $('gLines'));
+    }
+  }
+  setView(0, 0, W, H);
+  const ramp = MAP.legend; $('ramp').style.background = `linear-gradient(90deg, ${ramp.map((c, i) => `${c} ${Math.round(i / (ramp.length - 1) * 100)}%`).join(', ')})`;
+})();
+
+function drawLabels() {
+  const g = $('gLabels'); g.textContent = '';
+  const gs = $('gSea'); gs.textContent = '';
+  for (const s of SEAS) { const t = mk('text', { x: s.x, y: s.y, class: 'lbl sea' }, gs); t.textContent = lang === 'zh' ? s.zh : s.en; if (lang === 'en') t.style.letterSpacing = '.2em'; }
+  for (const c of MAP.countries) {
+    if (c.ctx) { const t = mk('text', { x: c.label[0], y: c.label[1], class: 'lbl ctx' }, g); t.textContent = CTX[c.ctx][lang === 'zh' ? 0 : 1]; }
+  }
+  for (const id of state.placed) placeLabel(id, g);
+}
+const LABEL_FIX = { '702': [10, 14], '096': [0, -14], '626': [0, 26], '360': [70, 30], '608': [10, 0] };
+function placeLabel(id, g = $('gLabels')) {
+  const c = byId[id], info = INFO[id], f = LABEL_FIX[id] || [0, 0];
+  const t = mk('text', { x: c.label[0] + f[0], y: c.label[1] + f[1], class: 'lbl place' }, g);
+  t.textContent = lang === 'zh' ? info.zh : info.en;
+  if (lang === 'zh') { const s = mk('tspan', { x: c.label[0] + f[0], dy: '1.2em', class: 'en' }, t); s.textContent = info.en; }
+}
+
+/* ---------- view / zoom / pan ---------- */
+
+function setView(x, y, w, h) {
+  w = Math.min(W, Math.max(W / 7, w)); h = w * H / W;
+  x = Math.min(W - w, Math.max(0, x)); y = Math.min(H - h, Math.max(0, y));
+  vb = [x, y, w, h]; svg.setAttribute('viewBox', vb.join(' ')); svg.style.setProperty('--z', Math.pow(W / w, .75));
+}
+function zoomAt(f, cx, cy) {
+  const [x, y, w, h] = vb; const nw = Math.min(W, Math.max(W / 7, w / f)); const k = nw / w;
+  setView(cx - (cx - x) * k, cy - (cy - y) * k, nw, nw * H / W);
+}
+function clientToMap(px, py) { const p = new DOMPoint(px, py).matrixTransform(svg.getScreenCTM().inverse()); return [p.x, p.y]; }
+function mapScale() { return svg.getScreenCTM().a; }
+svg.addEventListener('wheel', e => { e.preventDefault(); const [mx, my] = clientToMap(e.clientX, e.clientY); zoomAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, mx, my); }, { passive: false });
+$('zIn').onclick = () => zoomAt(1.4, vb[0] + vb[2] / 2, vb[1] + vb[3] / 2);
+$('zOut').onclick = () => zoomAt(1 / 1.4, vb[0] + vb[2] / 2, vb[1] + vb[3] / 2);
+$('zFit').onclick = () => setView(0, 0, W, H);
+let pan = null;
+svg.addEventListener('pointerdown', e => { if (drag) return; pan = { x: e.clientX, y: e.clientY, vb: vb.slice(), id: e.pointerId }; svg.setPointerCapture(e.pointerId); svg.classList.add('panning'); });
+svg.addEventListener('pointermove', e => {
+  if (!pan) return; const s = mapScale();
+  setView(pan.vb[0] - (e.clientX - pan.x) / s, pan.vb[1] - (e.clientY - pan.y) / s, pan.vb[2], pan.vb[3]);
+});
+const endPan = () => { pan = null; svg.classList.remove('panning'); };
+svg.addEventListener('pointerup', endPan); svg.addEventListener('pointercancel', endPan);
+
+/* hover names on placed countries */
+const tip = $('tip');
+$('gHits').addEventListener('pointermove', e => { const id = e.target.dataset && e.target.dataset.id; if (!id || pan) { tip.hidden = true; return; }
+  const i = INFO[id]; tip.textContent = `${i.zh}  ${i.en}`; tip.style.left = e.clientX + 14 + 'px'; tip.style.top = e.clientY + 12 + 'px'; tip.hidden = false; });
+$('gHits').addEventListener('pointerleave', () => tip.hidden = true);
+
+/* ---------- sound ---------- */
+let actx = null;
+function tone(freq, t0, dur, type = 'sine', vol = .18, slide) {
+  const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + dur + .02);
+}
+function sfx(kind) {
+  if (!soundOn) return;
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { return; }
+  const t = actx.currentTime;
+  if (kind === 'ok') { tone(784, t, .14, 'triangle', .2); tone(1175, t + .09, .22, 'triangle', .18); }
+  else if (kind === 'bad') { tone(220, t, .22, 'square', .07, 140); tone(110, t, .25, 'sine', .16, 80); }
+  else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i * .11, .3, 'triangle', .17)); }
+}
+const ICON_ON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z" fill="currentColor" stroke="none"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z" fill="currentColor" stroke="none"/><path d="M11 6l4 4M15 6l-4 4"/></svg>';
+function renderSound() { $('btnSound').innerHTML = soundOn ? ICON_ON : ICON_OFF; $('btnSound').setAttribute('aria-pressed', soundOn); }
+$('btnSound').onclick = () => { soundOn = !soundOn; store.set('sea-sound', soundOn); renderSound(); if (soundOn) sfx('ok'); };
+
+/* ---------- game state ---------- */
+let state;
+function newGame() {
+  const prevMiss = store.get('sea-mistakes', []).filter(id => TARGETS.includes(id));
+  const rest = TARGETS.filter(id => !prevMiss.includes(id)).sort(() => Math.random() - .5);
+  state = { order: [...prevMiss.sort(() => Math.random() - .5), ...rest], placed: [], tries: {}, score: 0, started: false, t0: 0, elapsed: 0, finished: false };
+  TARGETS.forEach(id => state.tries[id] = 0);
+  $('landClip').querySelectorAll('[data-placed]').forEach(n => n.remove());
+  $('gLines').querySelectorAll('[data-placed]').forEach(n => n.remove());
+  $('gHits').textContent = '';
+  const gs = $('gSlots'); gs.textContent = '';
+  for (const id of TARGETS) mk('use', { href: '#c-' + id, class: 'slot', id: 'slot-' + id }, gs);
+  $('card').hidden = true; setView(0, 0, W, H);
+  renderTray(); drawLabels(); renderStats();
+}
+function startClock() { if (state.started) return; state.started = true; state.t0 = performance.now(); }
+function fmt(ms) { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+setInterval(() => { if (state.started && !state.finished) { state.elapsed = performance.now() - state.t0; $('vTime').textContent = fmt(state.elapsed); } }, 250);
+function renderStats() {
+  $('vDone').textContent = `${state.placed.length} / ${TARGETS.length}`;
+  $('prog').style.width = state.placed.length / TARGETS.length * 100 + '%';
+  $('vScore').textContent = state.score;
+  if (!state.started) $('vTime').textContent = '0:00';
+}
+
+/* ---------- tray ---------- */
+function pieceSVG(id, pad) {
+  const c = byId[id]; const [x, y, w, h] = c.bbox; const p = pad != null ? pad : Math.max(w, h) * .04;
+  const minSpan = pad != null ? 0 : 46; const ex = Math.max(0, (minSpan - w - 2 * p) / 2), ey = Math.max(0, (minSpan * .75 - h - 2 * p) / 2);
+  const s = mk('svg', { viewBox: `${x - p - ex} ${y - p - ey} ${w + 2 * p + 2 * ex} ${h + 2 * p + 2 * ey}`, preserveAspectRatio: 'xMidYMid meet' });
+  const g = mk('g', { class: 'piece-shape' }, s);
+  mk('use', { href: '#terrainLayer', 'clip-path': `url(#pc-${id})` }, g);
+  mk('use', { href: '#c-' + id, fill: 'none', stroke: 'rgba(255,255,255,.9)', 'stroke-width': .9, 'vector-effect': 'non-scaling-stroke' }, g);
+  return s;
+}
+function renderTray() {
+  if (drag) onPieceCancel();
+  document.querySelectorAll('.ghost').forEach(g => g.remove());
+  const box = $('pieces'); box.textContent = '';
+  const left = state.order.filter(id => !state.placed.includes(id));
+  if (!left.length) { const d = document.createElement('div'); d.className = 'empty-tray'; d.textContent = T[lang].empty; box.appendChild(d); return; }
+  for (const id of left) {
+    const el = document.createElement('div'); el.className = 'piece'; el.dataset.id = id; el.tabIndex = 0;
+    el.appendChild(pieceSVG(id));
+    const nm = document.createElement('div'); nm.className = 'nm';
+    const i = INFO[id];
+    nm.innerHTML = lang === 'zh' ? `${i.zh}<small>${i.en}</small>` : `${i.en}<small>${i.zh}</small>`;
+    el.appendChild(nm);
+    if (state.tries[id]) { const m = document.createElement('span'); m.className = 'miss'; m.textContent = '×' + state.tries[id]; el.appendChild(m); }
+    el.addEventListener('pointerdown', onPieceDown);
+    box.appendChild(el);
+  }
+}
+
+function tileOf(id) { return document.querySelector(`.piece[data-id="${id}"]`); }
+function markMiss(id) {
+  const el = tileOf(id); if (!el) return;
+  let m = el.querySelector('.miss'); if (!m) { m = document.createElement('span'); m.className = 'miss'; el.appendChild(m); }
+  m.textContent = '×' + state.tries[id];
+}
+function removeTile(id) {
+  const el = tileOf(id); if (el) el.remove();
+  if (!document.querySelector('.piece')) renderTray();
+}
+
+/* ---------- drag ---------- */
+let drag = null;
+function onPieceDown(e) {
+  if (e.button !== 0 || state.finished) return;
+  const el = e.currentTarget; const id = el.dataset.id; const thumb = el.querySelector('svg');
+  const c = byId[id]; const [bx, by, bw, bh] = c.bbox;
+  // grab point as a fraction of the piece's bounding box
+  const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(thumb.getScreenCTM().inverse());
+  const fx = Math.min(1, Math.max(0, (pt.x - bx) / bw)), fy = Math.min(1, Math.max(0, (pt.y - by) / bh));
+  if (drag) onPieceCancel();
+  e.preventDefault();
+  drag = { id, el, fx, fy, sx: e.clientX, sy: e.clientY, ghost: null, pid: e.pointerId };
+  window.addEventListener('pointermove', onPieceMove); window.addEventListener('pointerup', onPieceUp); window.addEventListener('pointercancel', onPieceCancel);
+  window.addEventListener('blur', onPieceCancel);
+}
+function makeGhost() {
+  const { id, el } = drag; const c = byId[id];
+  const g = pieceSVG(id, 0); g.classList.add('ghost'); g.querySelector('.piece-shape').classList.remove('piece-shape');
+  document.body.appendChild(g);
+  // start at the thumbnail, then grow to true map scale
+  const r = el.querySelector('svg').getBoundingClientRect();
+  const k = Math.min(r.width / c.bbox[2], r.height / c.bbox[3]);
+  const tw = c.bbox[2] * k, th = c.bbox[3] * k;
+  place(g, r.left + (r.width - tw) / 2, r.top + (r.height - th) / 2, tw, th);
+  drag.ghost = g; el.classList.add('lifted');
+  g.getBoundingClientRect(); g.classList.add('anim');
+  startClock();
+}
+function place(g, x, y, w, h) { g.style.transform = `translate(${x}px, ${y}px)`; g.style.width = w + 'px'; g.style.height = h + 'px'; g._pos = [x, y, w, h]; }
+function ghostTarget(d, px, py) { const c = byId[d.id]; const s = mapScale(); const w = c.bbox[2] * s, h = c.bbox[3] * s; return [px - d.fx * w, py - d.fy * h, w, h]; }
+function onPieceMove(e) {
+  if (!drag) return;
+  if (e.buttons === 0) { onPieceUp(e); return; }   // released outside the page
+  if (!drag.ghost) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; makeGhost(); }
+  place(drag.ghost, ...ghostTarget(drag, e.clientX, e.clientY));
+  setTimeout(() => drag && drag.ghost && drag.ghost.classList.remove('anim'), 230);
+}
+function cleanupDrag() {
+  window.removeEventListener('pointermove', onPieceMove); window.removeEventListener('pointerup', onPieceUp); window.removeEventListener('pointercancel', onPieceCancel);
+  window.removeEventListener('blur', onPieceCancel);
+}
+function onPieceCancel() { if (!drag) return; cleanupDrag(); const d = drag; drag = null; if (d.ghost) bounceBack(d.ghost, d.el); }
+function onPieceUp(e) {
+  if (!drag) return; cleanupDrag();
+  const d = drag; drag = null;
+  if (!d.ghost) return;
+  const mr = $('mapwrap').getBoundingClientRect();
+  const overMap = e.clientX >= mr.left && e.clientX <= mr.right && e.clientY >= mr.top && e.clientY <= mr.bottom;
+  if (!overMap) { bounceBack(d.ghost, d.el); return; }
+  const [gx, gy] = ghostTarget(d, e.clientX, e.clientY);
+  const c = byId[d.id];
+  const [mx, my] = clientToMap(gx, gy);
+  const distPx = Math.hypot(mx - c.bbox[0], my - c.bbox[1]) * mapScale();
+  const tol = Math.max(30, Math.min(48, Math.min(c.bbox[2], c.bbox[3]) * mapScale() * .35));
+  if (distPx <= tol) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
+}
+function bounceBack(g, el) {
+  if (!el.isConnected) { g.style.opacity = 0; setTimeout(() => g.remove(), 200); return; }
+  const r = el.querySelector('svg').getBoundingClientRect(); const c = byId[el.dataset.id];
+  const k = Math.min(r.width / c.bbox[2], r.height / c.bbox[3]); const tw = c.bbox[2] * k, th = c.bbox[3] * k;
+  g.classList.add('anim'); place(g, r.left + (r.width - tw) / 2, r.top + (r.height - th) / 2, tw, th); g.style.opacity = .3;
+  setTimeout(() => { g.remove(); el.classList.remove('lifted'); }, 240);
+}
+function wrong(id, g, el) {
+  state.tries[id]++; sfx('bad');
+  const toast = $('toast'); toast.textContent = T[lang].wrong; toast.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => toast.hidden = true, 1300);
+  g.classList.add('shake'); setTimeout(() => { g.classList.remove('shake'); bounceBack(g, el); markMiss(id); }, 280);
+}
+function correct(id, g) {
+  state.tries[id]++;
+  const n = state.tries[id]; const pts = Math.max(0, 4 - n); state.score += pts;
+  const c = byId[id]; const ctm = svg.getScreenCTM(); const p = new DOMPoint(c.bbox[0], c.bbox[1]).matrixTransform(ctm);
+  g.classList.add('anim'); place(g, p.x, p.y, c.bbox[2] * ctm.a, c.bbox[3] * ctm.a);
+  sfx('ok');
+  setTimeout(() => {
+    g.remove();
+    state.placed.push(id);
+    mk('use', { href: '#c-' + id, 'data-placed': id }, $('landClip'));
+    mk('use', { href: '#c-' + id, class: 'placedline', 'data-placed': id }, $('gLines'));
+    const fl = mk('use', { href: '#c-' + id, class: 'flash', 'data-placed': id }, $('gLines')); setTimeout(() => fl.remove(), 1200);
+    const hit = mk('use', { href: '#c-' + id, class: 'hit' }, $('gHits')); hit.dataset.id = id;
+    $('slot-' + id).classList.add('done');
+    placeLabel(id); removeTile(id); renderStats(); showCard(id, n, pts);
+    if (state.placed.length === TARGETS.length) finish();
+  }, 230);
+}
+function showCard(id, n, pts) {
+  const i = INFO[id], t = T[lang], card = $('card');
+  const primary = lang === 'zh' ? i.zh : i.en, secondary = lang === 'zh' ? i.en : i.zh;
+  card.innerHTML = `<div class="head"><img alt="" src="${FLAGS[i.flag]}"><div><div class="zh">${primary}</div><div class="en">${secondary}</div></div><button class="x" aria-label="關閉">×</button></div>
+    <dl><dt>${t.capital}</dt><dd>${i.capZh}　${i.capEn}</dd></dl><div class="pts">${t.firstTry(n, pts)}</div>`;
+  card.querySelector('.x').onclick = () => card.hidden = true;
+  card.hidden = false; clearTimeout(card._t); card._t = setTimeout(() => card.hidden = true, 4000);
+}
+
+/* ---------- finish ---------- */
+function finish() {
+  state.finished = true; state.elapsed = performance.now() - state.t0; $('vTime').textContent = fmt(state.elapsed);
+  const missed = TARGETS.filter(id => state.tries[id] > 1);
+  store.set('sea-mistakes', missed);
+  const max = TARGETS.length * 3; const stars = state.score >= max - 2 ? 3 : state.score >= max * .7 ? 2 : 1;
+  const best = store.get('sea-best', null);
+  const isBestTime = !best || state.elapsed < best.time; const isBestScore = !best || state.score > best.score;
+  store.set('sea-best', { time: Math.min(state.elapsed, best ? best.time : Infinity), score: Math.max(state.score, best ? best.score : 0) });
+  setTimeout(() => { sfx('win'); renderResult(stars, missed, isBestTime, isBestScore); $('result').hidden = false; $('result').querySelector('.primary').focus(); }, 1400);
+}
+function renderResult(stars, missed, bt, bs) {
+  const t = T[lang]; const max = TARGETS.length * 3;
+  const nm = id => lang === 'zh' ? INFO[id].zh : INFO[id].en;
+  $('resultBody').innerHTML = `<h2>${t.doneH}</h2>
+    <div class="stars">${[0, 1, 2].map(i => `<span class="${i < stars ? '' : 'off'}">★</span>`).join('')}</div>
+    <div class="res"><div><span class="k">${t.resTime}</span><span class="v">${fmt(state.elapsed)}</span>${bt ? `<span class="best">${t.newBest}</span>` : ''}</div>
+      <div><span class="k">${t.resScore}</span><span class="v">${state.score}/${max}</span>${bs ? `<span class="best">${t.newBest}</span>` : ''}</div>
+      <div><span class="k">${t.resStars}</span><span class="v">${stars} / 3</span></div></div>
+    ${missed.length ? `<p>${t.review}</p><div class="chips">${missed.map(id => `<span>${nm(id)}</span>`).join('')}</div>` : `<p>${t.perfect}</p>`}
+    <div class="row"><button class="primary" id="btnAgain">${t.again}</button></div>`;
+  $('btnAgain').onclick = () => { $('result').hidden = true; newGame(); };
+}
+
+/* ---------- language ---------- */
+function applyLang() {
+  const t = T[lang]; document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
+  $('t-title').textContent = t.title; $('t-sub').textContent = t.sub; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
+  $('t-restart').textContent = t.restart; $('t-tray').textContent = t.tray; $('t-trayhint').textContent = t.trayhint;
+  $('t-elev').textContent = t.elev; $('t-elev2').textContent = t.elev2;
+  $('ticks').innerHTML = t.ticks.map(s => `<span>${s}</span>`).join('');
+  $('btnLang').textContent = t.lang;
+  $('zIn').setAttribute('aria-label', t.zin); $('zOut').setAttribute('aria-label', t.zout); $('zFit').setAttribute('aria-label', t.fit);
+  $('i-h').textContent = t.ih; $('i-p').textContent = t.ip; $('i-list').innerHTML = t.il.map(s => `<li>${s}</li>`).join(''); $('btnStart').textContent = t.start;
+  const best = store.get('sea-best', null); $('i-best').textContent = best ? `${t.best}: ${fmt(best.time)} · ${best.score}/${TARGETS.length * 3}` : '';
+  renderTray(); drawLabels(); $('card').hidden = true;
+}
+$('btnLang').onclick = () => { lang = lang === 'zh' ? 'en' : 'zh'; store.set('sea-lang', lang); applyLang(); };
+$('btnRestart').onclick = () => { $('result').hidden = true; newGame(); };
+$('btnStart').onclick = () => { $('intro').hidden = true; sfx('ok'); };
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  if (e.key === 'Escape') $('card').hidden = true;
+  if (e.key === 'r' || e.key === 'R') { $('result').hidden = true; newGame(); }
+  if (e.key === 'l' || e.key === 'L') $('btnLang').click();
+});
+
+newGame(); renderSound(); applyLang();
+</script>
