@@ -6,14 +6,14 @@ import json, base64, sys, re, os, shutil
 SP = os.path.dirname(os.path.abspath(__file__))
 DATA, OUT = sys.argv[1], sys.argv[2]
 FLAG_DIR = '/root/geo/node_modules/flag-icons/flags/4x3/'
-REGIONS = ['ea', 'sea', 'sa', 'ca', 'wa', 'ne', 'we', 'se', 'ee']
+REGIONS = ['cont', 'world', 'ea', 'sea', 'sa', 'ca', 'wa', 'ne', 'we', 'se', 'ee', 'naf', 'waf', 'caf', 'eaf', 'saf', 'nam', 'cam', 'car', 'sam', 'oc']
 
 t = open(os.path.join(SP, 'template.html'), encoding='utf-8').read()
 os.makedirs(os.path.join(OUT, 'data'), exist_ok=True)
 meta = {}
 for r in REGIONS:
     m = json.load(open(os.path.join(DATA, f'{r}.json')))
-    meta[r] = {'n': sum(1 for c in m['countries'] if c['target'])}
+    meta[r] = {'n': m.get('pickN') or (sum(1 for c in m['countries'] if c['target']) + len(m.get('oceans', [])))}
     for ext in ('json', 'jpg'):
         shutil.copyfile(os.path.join(DATA, f'{r}.{ext}'), os.path.join(OUT, 'data', f'{r}.{ext}'))
 codes = sorted(set(re.findall(r"flag: '([a-z]{2})'", t)))

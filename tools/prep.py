@@ -49,6 +49,39 @@ REGIONS = {
                ctx={'276': 'DE', '040': 'AT', '688': 'RS', '792': 'TR', '398': 'KZ', '268': 'GE', '246': 'FI',
                     '440': 'LT', '428': 'LV', '233': 'EE', '752': 'SE'},
                split={'643': 60.0}),   # Russia: only the European part (west of ~60°E, the Urals) is a piece
+    # ---- Africa (UN geoscheme)
+    'naf': dict(box=(-18.0, 38.0, 14.0, 38.0), clat=26,
+                targets=['012', '818', '434', '504', '729', '788'],
+                ctx={'732': 'EH', '562': 'NE', '466': 'ML', '148': 'TD', '728': 'SS', '682': 'SAU', '724': 'ES', '380': 'IT', '231': 'ET'}),
+    'waf': dict(box=(-26.0, 17.0, 3.0, 28.0), clat=14,
+                targets=['204', '854', '132', '384', '270', '288', '324', '624', '430', '466', '478', '562', '566', '686', '694', '768'],
+                ctx={'012': 'DZ', '148': 'TD', '120': 'CM', '732': 'EH', '504': 'MA', '434': 'LY'}),
+    'caf': dict(box=(6.0, 33.0, -19.0, 24.0), clat=3,
+                targets=['024', '120', '140', '148', '178', '180', '226', '266', '678'],
+                ctx={'566': 'NG', '729': 'SD', '728': 'SS', '800': 'UG', '834': 'TZ', '894': 'ZM', '516': 'NA', '562': 'NE', '434': 'LY'}),
+    'eaf': dict(box=(20.0, 60.0, -27.0, 19.0), clat=-4,
+                targets=['108', '174', '262', '232', '231', '404', '450', '454', '480', '508', '646', '690', '706', '728', '834', '800', '894', '716'],
+                ctx={'180': 'CD', '024': 'AO', '729': 'SD', '682': 'SAU', '887': 'YE', '516': 'NA', '072': 'BW', '710': 'ZA', '818': 'EG'}),
+    'saf': dict(box=(10.0, 34.0, -35.5, -16.5), clat=-26,
+                targets=['072', '748', '426', '516', '710'],
+                ctx={'024': 'AO', '894': 'ZM', '716': 'ZW', '508': 'MZ', '450': 'MG'}),
+    # ---- Americas (UN geoscheme)
+    'nam': dict(box=(-170.0, -50.0, 24.0, 75.0), proj='lcc', par=(35, 65), tol=0.35,
+                targets=['124', '840'],
+                ctx={'304': 'GL', '484': 'MX', '192': 'CU', '643': 'RU'}),
+    'cam': dict(box=(-118.0, -77.0, 6.5, 33.0), clat=19,
+                targets=['084', '188', '222', '320', '340', '484', '558', '591'],
+                ctx={'840': 'US', '192': 'CU', '170': 'CO', '388': 'JM'}),
+    'car': dict(box=(-86.0, -59.0, 9.5, 27.5), clat=18,
+                targets=['028', '044', '052', '192', '212', '214', '308', '332', '388', '659', '662', '670', '780'],
+                ctx={'840': 'US', '484': 'MX', '862': 'VE', '170': 'CO', '591': 'PA', '630': 'PR', '558': 'NI', '340': 'HN'}),
+    'sam': dict(box=(-82.0, -34.0, -56.0, 13.0), clat=-20,
+                targets=['032', '068', '076', '152', '170', '218', '328', '600', '604', '740', '858', '862'],
+                ctx={'591': 'PA', '238': 'FK', '188': 'CR'}),
+    # ---- Oceania: one region; it straddles the 180° meridian, so longitudes run 110..215
+    'oc': dict(box=(110.0, 215.0, -48.0, 12.0), clat=-18, wrap=True,
+               targets=['036', '554', '598', '090', '548', '242', '585', '583', '584', '520', '296', '798', '882', '776'],
+               ctx={'360': 'ID', '626': 'TL', '608': 'PH', '540': 'NC', '258': 'PF'}),
 }
 CFG = REGIONS[REGION]
 CORE = CFG['box']
@@ -56,6 +89,7 @@ TARGET = CFG['targets']
 CONTEXT_LABEL = CFG['ctx']
 K = 20.0          # map units per degree of latitude
 S = 2             # terrain pixels per map unit
+MIN_ASPECT = 1.9  # map width / height, at least as wide as a wide laptop screen's map area
 TINY = {'702', '462', '344', '446', '048', '336', '492', '674', '438', '020', '470'}   # keep every islet
 # places only a few km across, swollen (map units) so they can be seen and grabbed
 SWELL = {'446': 0.9, '048': 0.9, '336': 2.4, '492': 2.0, '674': 1.6, '438': 1.3, '020': 1.1, '470': 0.9}
@@ -69,7 +103,11 @@ class Equirect:
         self.lat0, self.lat1 = CORE[2] - self.PAD_LAT, CORE[3] + self.PAD_LAT
         self.kx = K * math.cos(math.radians(CFG['clat']))
         self.W, self.H = (self.lon1 - self.lon0) * self.kx, (self.lat1 - self.lat0) * K
-        self.clip = box(self.lon0 - 1, self.lat0 - 1, self.lon1 + 1, self.lat1 + 1)
+        if self.W < MIN_ASPECT * self.H:      # tall region: add terrain at the sides so a wide screen still shows its full height
+            extra = (MIN_ASPECT * self.H - self.W) / 2 / self.kx
+            self.lon0 -= extra; self.lon1 += extra
+            self.W = (self.lon1 - self.lon0) * self.kx
+        self.clip = box(self.lon0 - 1, max(-89, self.lat0 - 1), self.lon1 + 1, min(89, self.lat1 + 1))
     def fwd(self, lon, lat):
         return (np.asarray(lon) - self.lon0) * self.kx, (self.lat1 - np.asarray(lat)) * K
     def inv(self, x, y):
@@ -97,6 +135,10 @@ class LCC:
         self.xmin, self.xmax = rx.min() - self.PAD_X * K, rx.max() + self.PAD_X * K
         self.ymin, self.ymax = ry.min() - self.PAD_Y * K, ry.max() + self.PAD_Y * K
         self.W, self.H = self.xmax - self.xmin, self.ymax - self.ymin
+        if self.W < MIN_ASPECT * self.H:
+            extra = (MIN_ASPECT * self.H - self.W) / 2
+            self.xmin -= extra; self.xmax += extra
+            self.W = self.xmax - self.xmin
         self.clip = box(CORE[0] - 55, max(-80, CORE[2] - 12), CORE[1] + 55, min(84, CORE[3] + 14))
     def _raw(self, lon, lat):
         phi = np.radians(np.asarray(lat, dtype=float)); lam = np.radians(np.asarray(lon, dtype=float))
@@ -173,9 +215,17 @@ def fix_antimeridian(geom):
     return mapping(unary_union(parts))
 
 countries = json.load(open(GEO + 'countries50.geojson'))['features']
+seen = set()
 for f in countries:
     f['id'] = f.get('id') or f['properties']['name']
+    if f['id'] in seen:                 # e.g. Ashmore and Cartier Is. share Australia's id: keep it as background land
+        f['id'] = f['properties']['name']
+    seen.add(f['id'])
     f['geometry'] = fix_antimeridian(f['geometry'])
+# Tuvalu is missing from the 1:50m data
+for f in json.load(open(GEO + 'countries10.geojson'))['features']:
+    if f.get('id') == '798':
+        countries.append({'id': '798', 'properties': {'name': 'Tuvalu'}, 'geometry': fix_antimeridian(f['geometry'])})
 byname = lambda n: next(f for f in countries if f['properties']['name'] == n)
 byid = lambda i: next(f for f in countries if f['id'] == i)
 
@@ -189,6 +239,10 @@ for f in countries:
 cy, ncy = byid('196'), byname('N. Cyprus')
 cy['geometry'] = mapping(shape(cy['geometry']).union(shape(ncy['geometry'])).buffer(0.001).buffer(-0.001))
 countries.remove(ncy)
+# Somaliland is drawn as its own unit; the piece is the whole of Somalia (as recognised by the UN)
+so, sl = byid('706'), byname('Somaliland')
+so['geometry'] = mapping(shape(so['geometry']).buffer(0).union(shape(sl['geometry']).buffer(0)).buffer(0.002).buffer(-0.002))
+countries.remove(sl)
 # Crimea: the source draws it in Russia; follow the UN General Assembly position and draw it in Ukraine
 ru, ua = byid('643'), byid('804')
 crimea_box = box(32.3, 44.2, 36.62, 46.3)
@@ -196,6 +250,17 @@ g_ru = shape(ru['geometry']).buffer(0)
 crimea = g_ru.intersection(crimea_box)
 ru['geometry'] = mapping(g_ru.difference(crimea_box))
 ua['geometry'] = mapping(shape(ua['geometry']).buffer(0).union(crimea).buffer(0.002).buffer(-0.002))
+# a region across the 180° meridian: move the western hemisphere 360° east so the Pacific is contiguous
+def shift_east(geom, cut=-20.0):
+    g = shape(geom).buffer(0) if geom['type'] in ('Polygon', 'MultiPolygon') else shape(geom)
+    west = g.intersection(box(-180, -90, cut, 90)); east = g.intersection(box(cut, -90, 180, 90))
+    if west.is_empty:
+        return geom
+    return mapping(unary_union([east, affinity.translate(west, xoff=360)]) if geom['type'] in ('Polygon', 'MultiPolygon')
+                   else unary_union([east, affinity.translate(west, xoff=360)]))
+if CFG.get('wrap'):
+    for f in countries:
+        f['geometry'] = shift_east(f['geometry'])
 # split a huge country: the piece is the part west of the given meridian, the rest stays as background land
 for cid, lon_cut in CFG.get('split', {}).items():
     f = byid(cid); g = shape(f['geometry']).buffer(0)
@@ -213,19 +278,22 @@ for f in countries:
     g = densify(g.intersection(P.clip))
     gp = project(g)
     is_t = f['id'] in TARGET
+    tiny_state = is_t and gp.area < 9 and f['id'] not in SWELL and f['id'] != '462'
     if f['id'] in SWELL:
         gp = gp.buffer(SWELL[f['id']]).simplify(0.15)
+    elif tiny_state:
+        gp = gp.buffer(1.3).simplify(0.15)   # island states a few km across (Nauru, Tuvalu, St Kitts, Seychelles...)
     elif f['id'] == '462':
         # Maldives: join the islets into one continuous chain you can see and grab
         gp = gp.buffer(4.0).buffer(-1.6)
         gp = MultiPolygon([Polygon(q.exterior) for q in (gp.geoms if hasattr(gp, 'geoms') else [gp])]).simplify(0.3)
     else:
-        gp = gp.simplify(0.12 if is_t else 0.35, preserve_topology=True)
+        gp = gp.simplify(CFG.get('tol', 0.12) if is_t else max(0.35, CFG.get('tol', 0)), preserve_topology=True)
     if not is_t:
         gp = gp.intersection(view.buffer(4))
     polys = [p for p in (gp.geoms if hasattr(gp, 'geoms') else [gp]) if isinstance(p, Polygon)]
     min_area = 0.15 if is_t else 1.5
-    polys = [p for p in polys if p.area >= min_area or (is_t and f['id'] in TINY)]
+    polys = [p for p in polys if p.area >= min_area or (is_t and (f['id'] in TINY or tiny_state))]
     if is_t and polys:
         near = [p for p in polys if CORE_AREA.contains(p.representative_point())]
         polys = near or [max(polys, key=lambda p: p.area)]
@@ -246,7 +314,7 @@ riv_major, riv_minor = [], []
 for f in json.load(open(GEO + 'rivers50.geojson'))['features']:
     if f['geometry'] is None:
         continue
-    g = shape(f['geometry'])
+    g = shape(shift_east(f['geometry'])) if CFG.get('wrap') else shape(f['geometry'])
     if not g.intersects(P.clip):
         continue
     gp = project(densify(g.intersection(P.clip))).intersection(view.buffer(4)).simplify(0.4)

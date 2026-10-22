@@ -107,6 +107,9 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
 .card dt { color: var(--ink-soft); }
 .card dd { margin: 0; }
+.card .head.noflag { grid-template-columns: 1fr auto; }
+.lbl.oceanname { font-family: var(--font-display); font-size: calc(18px / var(--z, 1)); fill: rgba(12,60,70,.78); letter-spacing: .3em; font-weight: 700;
+  paint-order: stroke; stroke: rgba(255,255,255,.55); stroke-width: calc(3px / var(--z, 1)); text-anchor: middle; pointer-events: none; }
 .card .note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
 .card .pts { font-size: 13px; color: var(--good); font-weight: 700; border-top: 1px solid var(--rule); padding-top: 8px; }
 
@@ -213,6 +216,7 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
           </g>
         </defs>
         <rect id="ocean" x="-2000" y="-2000" fill="url(#oceanGrad)"/>
+        <path id="oceanShape" fill="url(#oceanGrad)" style="display:none"/>
         <g id="gSea"></g>
         <use href="#terrainLayer" clip-path="url(#landClip)"/>
         <g id="gVeil"></g>
@@ -259,8 +263,14 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 <script>
 const LEVEL_META = __LEVEL_META__;   // per region: { n: pieces }; the map itself is fetched from data/<id>.json when chosen
 const FLAGS = __FLAGS__;
-const CONTINENTS = { asia: { zh: '亞洲', en: 'Asia' }, europe: { zh: '歐洲', en: 'Europe' } };
+const CONTINENTS = { special: { zh: '特別關卡', en: 'Special' }, asia: { zh: '亞洲', en: 'Asia' }, europe: { zh: '歐洲', en: 'Europe' }, africa: { zh: '非洲', en: 'Africa' }, americas: { zh: '美洲', en: 'Americas' }, oceania: { zh: '大洋洲', en: 'Oceania' } };
 const LV = {
+  cont:  { cont: 'special', zh: { region: '七大洲三大洋', title: '七大洲三大洋', sub: '7 大洲、3 大洋' }, en: { region: 'Continents & Oceans', title: 'Continents and Oceans', sub: '7 continents, 3 oceans' },
+           seas: [], labelFix: { 'EU': [10, 30], 'OC': [-10, -16], 'NA': [30, 40] } },
+  world: { cont: 'special', zh: { region: '世界大挑戰', title: '世界大挑戰' }, en: { region: 'World Challenge', title: 'World Challenge' },
+           seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: -140, lat: 5 }, { zh: '太平洋', en: 'PACIFIC OCEAN', lon: 170, lat: 18 },
+                   { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -38, lat: 28 }, { zh: '印度洋', en: 'INDIAN OCEAN', lon: 78, lat: -18 } ],
+           labelFix: {} },
   ea:  { cont: 'asia', zh: { region: '東亞', title: '東亞地形拼圖' }, en: { region: 'East Asia', title: 'East Asia Terrain Puzzle' },
          seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: 139, lat: 27 }, { zh: '南海', en: 'SOUTH CHINA SEA', lon: 115.5, lat: 18.5 } ],
          labelFix: { '344': [16, 14], '446': [-18, 12], '158': [4, 2], '410': [2, 4], '408': [0, -2] } },
@@ -295,6 +305,43 @@ const LV = {
          seas: [ { zh: '黑海', en: 'BLACK SEA', lon: 34.5, lat: 43.4 }, { zh: '裏海', en: 'CASPIAN', lon: 50.6, lat: 43.2 },
                  { zh: '波羅的海', en: 'BALTIC SEA', lon: 19.4, lat: 56.0, size: .75 }, { zh: '白海', en: 'WHITE SEA', lon: 38.6, lat: 65.6, size: .7 } ],
          labelFix: { '498': [6, 0] } },
+  naf: { cont: 'africa', zh: { region: '北非', title: '北非地形拼圖' }, en: { region: 'North Africa', title: 'North Africa Terrain Puzzle' },
+         seas: [ { zh: '地中海', en: 'MEDITERRANEAN', lon: 18, lat: 34.4 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -15.5, lat: 27.5 },
+                 { zh: '紅海', en: 'RED SEA', lon: 37.7, lat: 20.5, size: .7 } ],
+         labelFix: { '788': [2, 0] } },
+  waf: { cont: 'africa', zh: { region: '西非', title: '西非地形拼圖' }, en: { region: 'West Africa', title: 'West Africa Terrain Puzzle' },
+         seas: [ { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -19, lat: 7 }, { zh: '幾內亞灣', en: 'GULF OF GUINEA', lon: 3.5, lat: 2.6, size: .8 } ],
+         labelFix: { '270': [-14, -6], '624': [-16, 6], '132': [0, 12], '768': [0, 8], '204': [6, 10] } },
+  caf: { cont: 'africa', zh: { region: '中非', title: '中非地形拼圖' }, en: { region: 'Middle Africa', title: 'Middle Africa Terrain Puzzle' },
+         seas: [ { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: 3, lat: -9 }, { zh: '幾內亞灣', en: 'GULF OF GUINEA', lon: 4.5, lat: 2.2, size: .75 } ],
+         labelFix: { '678': [-16, 8], '226': [-8, -6] } },
+  eaf: { cont: 'africa', zh: { region: '東非', title: '東非地形拼圖' }, en: { region: 'East Africa', title: 'East Africa Terrain Puzzle' },
+         seas: [ { zh: '印度洋', en: 'INDIAN OCEAN', lon: 54, lat: -8 }, { zh: '紅海', en: 'RED SEA', lon: 38.8, lat: 18.4, size: .6, rot: 55 },
+                 { zh: '亞丁灣', en: 'GULF OF ADEN', lon: 48, lat: 12.4, size: .55 } ],
+         labelFix: { '646': [-12, 0], '108': [-12, 8], '262': [10, 0], '174': [0, 10], '480': [0, 12], '690': [0, 12] } },
+  saf: { cont: 'africa', zh: { region: '南部非洲', title: '南部非洲地形拼圖' }, en: { region: 'Southern Africa', title: 'Southern Africa Terrain Puzzle' },
+         seas: [ { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: 8, lat: -29 }, { zh: '印度洋', en: 'INDIAN OCEAN', lon: 36, lat: -32 } ],
+         labelFix: { '426': [0, 4], '748': [10, 0] } },
+  nam: { cont: 'americas', zh: { region: '北美洲', title: '北美洲地形拼圖' }, en: { region: 'Northern America', title: 'Northern America Terrain Puzzle' },
+         seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: -140, lat: 40 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -57, lat: 37 },
+                 { zh: '哈德遜灣', en: 'HUDSON BAY', lon: -86, lat: 59, size: .75 }, { zh: '墨西哥灣', en: 'GULF OF MEXICO', lon: -90, lat: 25.6, size: .75 },
+                 { zh: '北冰洋', en: 'ARCTIC OCEAN', lon: -150, lat: 74 } ],
+         labelFix: {} },
+  cam: { cont: 'americas', zh: { region: '中美洲', title: '中美洲地形拼圖' }, en: { region: 'Central America', title: 'Central America Terrain Puzzle' },
+         seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: -103, lat: 13 }, { zh: '墨西哥灣', en: 'GULF OF MEXICO', lon: -91, lat: 25, size: .8 },
+                 { zh: '加勒比海', en: 'CARIBBEAN SEA', lon: -80, lat: 15.5, size: .8 } ],
+         labelFix: { '222': [-6, 8], '084': [8, -4], '188': [-4, 4], '591': [4, -6] } },
+  car: { cont: 'americas', zh: { region: '加勒比海', title: '加勒比海地形拼圖' }, en: { region: 'Caribbean', title: 'Caribbean Terrain Puzzle' },
+         seas: [ { zh: '加勒比海', en: 'CARIBBEAN SEA', lon: -74, lat: 14.6 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -66, lat: 24 } ],
+         labelFix: { '659': [20, -4], '028': [22, -2], '212': [22, 0], '662': [22, 0], '670': [22, 2], '052': [20, 0], '308': [20, 2], '780': [0, 10] } },
+  sam: { cont: 'americas', zh: { region: '南美洲', title: '南美洲地形拼圖' }, en: { region: 'South America', title: 'South America Terrain Puzzle' },
+         seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: -92, lat: -22 }, { zh: '大西洋', en: 'ATLANTIC OCEAN', lon: -30, lat: -28 },
+                 { zh: '加勒比海', en: 'CARIBBEAN SEA', lon: -72, lat: 13.6, size: .7 } ],
+         labelFix: { '740': [0, -4], '328': [-6, 0], '858': [4, 4] } },
+  oc:  { cont: 'oceania', zh: { region: '大洋洲', title: '大洋洲地形拼圖' }, en: { region: 'Oceania', title: 'Oceania Terrain Puzzle' },
+         seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: 188, lat: -14 }, { zh: '塔斯曼海', en: 'TASMAN SEA', lon: 160, lat: -38, size: .8 },
+                 { zh: '珊瑚海', en: 'CORAL SEA', lon: 154, lat: -15, size: .8 }, { zh: '印度洋', en: 'INDIAN OCEAN', lon: 114, lat: -40, size: .8 } ],
+         labelFix: { '520': [0, -10], '798': [0, 12], '585': [0, -10], '548': [12, 0] } },
 };
 
 const INFO = {
@@ -399,24 +446,149 @@ const INFO = {
   '348': { zh: '匈牙利', en: 'Hungary', capZh: '布達佩斯', capEn: 'Budapest', flag: 'hu' },
   '642': { zh: '羅馬尼亞', en: 'Romania', capZh: '布加勒斯特', capEn: 'Bucharest', flag: 'ro' },
   '100': { zh: '保加利亞', en: 'Bulgaria', capZh: '索菲亞', capEn: 'Sofia', flag: 'bg' },
+  'AS': { zh: '亞洲', en: 'Asia', noteZh: '面積最大、人口最多的洲', noteEn: 'The largest continent, with the most people' },
+  'EU': { zh: '歐洲', en: 'Europe', noteZh: '和亞洲連在一起，大致以烏拉山、裏海、黑海一帶為界', noteEn: 'Joined to Asia; the usual border runs along the Urals, the Caspian and the Black Sea' },
+  'AF': { zh: '非洲', en: 'Africa', noteZh: '面積第二大的洲，赤道從中間穿過', noteEn: 'The second-largest continent; the equator runs through its middle' },
+  'NA': { zh: '北美洲', en: 'North America', noteZh: '包括中美洲、加勒比海島國和格陵蘭', noteEn: 'Includes Central America, the Caribbean islands and Greenland' },
+  'SA': { zh: '南美洲', en: 'South America', noteZh: '和北美洲在巴拿馬相連', noteEn: 'Joined to North America at Panama' },
+  'OC': { zh: '大洋洲', en: 'Oceania', noteZh: '面積最小的洲，以澳洲為主，加上太平洋上的島嶼', noteEn: 'The smallest continent: Australia plus the Pacific islands' },
+  'AN': { zh: '南極洲', en: 'Antarctica', noteZh: '幾乎全被冰覆蓋，沒有常住居民', noteEn: 'Almost entirely covered by ice, with no permanent residents' },
+  'OP': { zh: '太平洋', en: 'Pacific Ocean', noteZh: '最大、最深的海洋，比全部陸地加起來還大', noteEn: 'The largest and deepest ocean, bigger than all the land put together' },
+  'OA': { zh: '大西洋', en: 'Atlantic Ocean', noteZh: '第二大洋，隔開美洲與歐洲、非洲', noteEn: 'The second-largest ocean, between the Americas and Europe and Africa' },
+  'OI': { zh: '印度洋', en: 'Indian Ocean', noteZh: '第三大洋，在非洲、亞洲與澳洲之間', noteEn: 'The third-largest ocean, between Africa, Asia and Australia' },
+  '012': { zh: '阿爾及利亞', en: 'Algeria', capZh: '阿爾及爾', capEn: 'Algiers', flag: 'dz' },
+  '818': { zh: '埃及', en: 'Egypt', capZh: '開羅', capEn: 'Cairo', flag: 'eg' },
+  '434': { zh: '利比亞', en: 'Libya', capZh: '的黎波里', capEn: 'Tripoli', flag: 'ly' },
+  '504': { zh: '摩洛哥', en: 'Morocco', capZh: '拉巴特', capEn: 'Rabat', flag: 'ma',
+           noteZh: '南邊的西撒哈拉主權有爭議，地圖上另外畫成一塊', noteEn: 'Western Sahara, to the south, is disputed and drawn separately' },
+  '729': { zh: '蘇丹', en: 'Sudan', capZh: '喀土穆', capEn: 'Khartoum', flag: 'sd' },
+  '788': { zh: '突尼西亞', en: 'Tunisia', capZh: '突尼斯', capEn: 'Tunis', flag: 'tn' },
+  '204': { zh: '貝南', en: 'Benin', capZh: '新港', capEn: 'Porto-Novo', flag: 'bj', noteZh: '政府機關多設在科多努', noteEn: 'Most government offices are in Cotonou' },
+  '854': { zh: '布吉納法索', en: 'Burkina Faso', capZh: '瓦加杜古', capEn: 'Ouagadougou', flag: 'bf' },
+  '132': { zh: '維德角', en: 'Cabo Verde', capZh: '普拉亞', capEn: 'Praia', flag: 'cv' },
+  '384': { zh: '象牙海岸', en: "Côte d'Ivoire", capZh: '雅穆索戈', capEn: 'Yamoussoukro', flag: 'ci', noteZh: '最大城市是阿比尚', noteEn: 'The largest city is Abidjan' },
+  '270': { zh: '甘比亞', en: 'The Gambia', capZh: '班竹', capEn: 'Banjul', flag: 'gm' },
+  '288': { zh: '迦納', en: 'Ghana', capZh: '阿克拉', capEn: 'Accra', flag: 'gh' },
+  '324': { zh: '幾內亞', en: 'Guinea', capZh: '柯那克里', capEn: 'Conakry', flag: 'gn' },
+  '624': { zh: '幾內亞比索', en: 'Guinea-Bissau', capZh: '比索', capEn: 'Bissau', flag: 'gw' },
+  '430': { zh: '賴比瑞亞', en: 'Liberia', capZh: '蒙羅維亞', capEn: 'Monrovia', flag: 'lr' },
+  '466': { zh: '馬利', en: 'Mali', capZh: '巴馬科', capEn: 'Bamako', flag: 'ml' },
+  '478': { zh: '茅利塔尼亞', en: 'Mauritania', capZh: '諾克少', capEn: 'Nouakchott', flag: 'mr' },
+  '562': { zh: '尼日', en: 'Niger', capZh: '尼阿美', capEn: 'Niamey', flag: 'ne' },
+  '566': { zh: '奈及利亞', en: 'Nigeria', capZh: '阿布加', capEn: 'Abuja', flag: 'ng' },
+  '686': { zh: '塞內加爾', en: 'Senegal', capZh: '達卡', capEn: 'Dakar', flag: 'sn' },
+  '694': { zh: '獅子山', en: 'Sierra Leone', capZh: '自由城', capEn: 'Freetown', flag: 'sl' },
+  '768': { zh: '多哥', en: 'Togo', capZh: '洛美', capEn: 'Lomé', flag: 'tg' },
+  '024': { zh: '安哥拉', en: 'Angola', capZh: '魯安達', capEn: 'Luanda', flag: 'ao' },
+  '120': { zh: '喀麥隆', en: 'Cameroon', capZh: '雅溫德', capEn: 'Yaoundé', flag: 'cm' },
+  '140': { zh: '中非共和國', en: 'Central African Republic', capZh: '班基', capEn: 'Bangui', flag: 'cf' },
+  '148': { zh: '查德', en: 'Chad', capZh: '恩加美納', capEn: "N'Djamena", flag: 'td' },
+  '178': { zh: '剛果共和國', en: 'Republic of the Congo', capZh: '布拉薩市', capEn: 'Brazzaville', flag: 'cg' },
+  '180': { zh: '剛果民主共和國', en: 'DR Congo', capZh: '金夏沙', capEn: 'Kinshasa', flag: 'cd' },
+  '226': { zh: '赤道幾內亞', en: 'Equatorial Guinea', capZh: '馬拉博', capEn: 'Malabo', flag: 'gq' },
+  '266': { zh: '加彭', en: 'Gabon', capZh: '自由市', capEn: 'Libreville', flag: 'ga' },
+  '678': { zh: '聖多美普林西比', en: 'São Tomé and Príncipe', capZh: '聖多美', capEn: 'São Tomé', flag: 'st' },
+  '108': { zh: '蒲隆地', en: 'Burundi', capZh: '基特加', capEn: 'Gitega', flag: 'bi' },
+  '174': { zh: '葛摩', en: 'Comoros', capZh: '莫洛尼', capEn: 'Moroni', flag: 'km' },
+  '262': { zh: '吉布地', en: 'Djibouti', capZh: '吉布地市', capEn: 'Djibouti', flag: 'dj' },
+  '232': { zh: '厄利垂亞', en: 'Eritrea', capZh: '阿斯瑪拉', capEn: 'Asmara', flag: 'er' },
+  '231': { zh: '衣索比亞', en: 'Ethiopia', capZh: '阿迪斯阿貝巴', capEn: 'Addis Ababa', flag: 'et' },
+  '404': { zh: '肯亞', en: 'Kenya', capZh: '奈洛比', capEn: 'Nairobi', flag: 'ke' },
+  '450': { zh: '馬達加斯加', en: 'Madagascar', capZh: '安塔那那利佛', capEn: 'Antananarivo', flag: 'mg' },
+  '454': { zh: '馬拉威', en: 'Malawi', capZh: '里朗威', capEn: 'Lilongwe', flag: 'mw' },
+  '480': { zh: '模里西斯', en: 'Mauritius', capZh: '路易士港', capEn: 'Port Louis', flag: 'mu' },
+  '508': { zh: '莫三比克', en: 'Mozambique', capZh: '馬布多', capEn: 'Maputo', flag: 'mz' },
+  '646': { zh: '盧安達', en: 'Rwanda', capZh: '吉佳利', capEn: 'Kigali', flag: 'rw' },
+  '690': { zh: '塞席爾', en: 'Seychelles', capZh: '維多利亞', capEn: 'Victoria', flag: 'sc' },
+  '706': { zh: '索馬利亞', en: 'Somalia', capZh: '摩加迪休', capEn: 'Mogadishu', flag: 'so',
+           noteZh: '北部的索馬利蘭自行宣布獨立，國際上大多不承認，這裡畫在索馬利亞境內', noteEn: 'Somaliland in the north declared independence but is not widely recognised; it is drawn as part of Somalia' },
+  '728': { zh: '南蘇丹', en: 'South Sudan', capZh: '朱巴', capEn: 'Juba', flag: 'ss', noteZh: '2011 年獨立，是世界上最年輕的國家之一', noteEn: 'Independent since 2011, one of the youngest countries' },
+  '834': { zh: '坦尚尼亞', en: 'Tanzania', capZh: '多多馬', capEn: 'Dodoma', flag: 'tz' },
+  '800': { zh: '烏干達', en: 'Uganda', capZh: '坎帕拉', capEn: 'Kampala', flag: 'ug' },
+  '894': { zh: '尚比亞', en: 'Zambia', capZh: '路沙卡', capEn: 'Lusaka', flag: 'zm' },
+  '716': { zh: '辛巴威', en: 'Zimbabwe', capZh: '哈拉雷', capEn: 'Harare', flag: 'zw' },
+  '072': { zh: '波札那', en: 'Botswana', capZh: '嘉柏隆里', capEn: 'Gaborone', flag: 'bw' },
+  '748': { zh: '史瓦帝尼', en: 'Eswatini', capZh: '墨巴本', capEn: 'Mbabane', flag: 'sz' },
+  '426': { zh: '賴索托', en: 'Lesotho', capZh: '馬塞魯', capEn: 'Maseru', flag: 'ls', noteZh: '四周完全被南非包圍', noteEn: 'Completely surrounded by South Africa' },
+  '516': { zh: '納米比亞', en: 'Namibia', capZh: '溫荷克', capEn: 'Windhoek', flag: 'na' },
+  '710': { zh: '南非', en: 'South Africa', capZh: '普利托利亞', capEn: 'Pretoria', flag: 'za',
+           noteZh: '有三個首都：行政首都普利托利亞、立法首都開普敦、司法首都布隆泉', noteEn: 'Three capitals: Pretoria (executive), Cape Town (legislative), Bloemfontein (judicial)' },
+  '124': { zh: '加拿大', en: 'Canada', capZh: '渥太華', capEn: 'Ottawa', flag: 'ca' },
+  '840': { zh: '美國', en: 'United States', capZh: '華盛頓特區', capEn: 'Washington, D.C.', flag: 'us', noteZh: '夏威夷在太平洋中，不在這張地圖上', noteEn: 'Hawaii, out in the Pacific, is not on this map' },
+  '084': { zh: '貝里斯', en: 'Belize', capZh: '貝爾墨潘', capEn: 'Belmopan', flag: 'bz' },
+  '188': { zh: '哥斯大黎加', en: 'Costa Rica', capZh: '聖荷西', capEn: 'San José', flag: 'cr' },
+  '222': { zh: '薩爾瓦多', en: 'El Salvador', capZh: '聖薩爾瓦多', capEn: 'San Salvador', flag: 'sv' },
+  '320': { zh: '瓜地馬拉', en: 'Guatemala', capZh: '瓜地馬拉市', capEn: 'Guatemala City', flag: 'gt' },
+  '340': { zh: '宏都拉斯', en: 'Honduras', capZh: '德古斯加巴', capEn: 'Tegucigalpa', flag: 'hn' },
+  '484': { zh: '墨西哥', en: 'Mexico', capZh: '墨西哥市', capEn: 'Mexico City', flag: 'mx' },
+  '558': { zh: '尼加拉瓜', en: 'Nicaragua', capZh: '馬拿瓜', capEn: 'Managua', flag: 'ni' },
+  '591': { zh: '巴拿馬', en: 'Panama', capZh: '巴拿馬市', capEn: 'Panama City', flag: 'pa' },
+  '028': { zh: '安地卡及巴布達', en: 'Antigua and Barbuda', capZh: '聖約翰', capEn: "St. John's", flag: 'ag' },
+  '044': { zh: '巴哈馬', en: 'The Bahamas', capZh: '拿索', capEn: 'Nassau', flag: 'bs' },
+  '052': { zh: '巴貝多', en: 'Barbados', capZh: '橋鎮', capEn: 'Bridgetown', flag: 'bb' },
+  '192': { zh: '古巴', en: 'Cuba', capZh: '哈瓦那', capEn: 'Havana', flag: 'cu' },
+  '212': { zh: '多米尼克', en: 'Dominica', capZh: '羅梭', capEn: 'Roseau', flag: 'dm' },
+  '214': { zh: '多明尼加', en: 'Dominican Republic', capZh: '聖多明哥', capEn: 'Santo Domingo', flag: 'do' },
+  '308': { zh: '格瑞那達', en: 'Grenada', capZh: '聖喬治', capEn: "St. George's", flag: 'gd' },
+  '332': { zh: '海地', en: 'Haiti', capZh: '太子港', capEn: 'Port-au-Prince', flag: 'ht' },
+  '388': { zh: '牙買加', en: 'Jamaica', capZh: '京斯敦', capEn: 'Kingston', flag: 'jm' },
+  '659': { zh: '聖克里斯多福及尼維斯', en: 'Saint Kitts and Nevis', capZh: '巴士地', capEn: 'Basseterre', flag: 'kn' },
+  '662': { zh: '聖露西亞', en: 'Saint Lucia', capZh: '卡斯翠', capEn: 'Castries', flag: 'lc' },
+  '670': { zh: '聖文森及格瑞那丁', en: 'Saint Vincent and the Grenadines', capZh: '金石城', capEn: 'Kingstown', flag: 'vc' },
+  '780': { zh: '千里達及托巴哥', en: 'Trinidad and Tobago', capZh: '西班牙港', capEn: 'Port of Spain', flag: 'tt' },
+  '032': { zh: '阿根廷', en: 'Argentina', capZh: '布宜諾斯艾利斯', capEn: 'Buenos Aires', flag: 'ar' },
+  '068': { zh: '玻利維亞', en: 'Bolivia', capZh: '蘇克雷', capEn: 'Sucre', flag: 'bo', noteZh: '憲法上的首都是蘇克雷，政府設在拉巴斯', noteEn: 'Sucre is the constitutional capital; the government sits in La Paz' },
+  '076': { zh: '巴西', en: 'Brazil', capZh: '巴西利亞', capEn: 'Brasília', flag: 'br' },
+  '152': { zh: '智利', en: 'Chile', capZh: '聖地牙哥', capEn: 'Santiago', flag: 'cl' },
+  '170': { zh: '哥倫比亞', en: 'Colombia', capZh: '波哥大', capEn: 'Bogotá', flag: 'co' },
+  '218': { zh: '厄瓜多', en: 'Ecuador', capZh: '基多', capEn: 'Quito', flag: 'ec', noteZh: '加拉巴哥群島在太平洋中，不在這張地圖上', noteEn: 'The Galápagos Islands, out in the Pacific, are not on this map' },
+  '328': { zh: '蓋亞那', en: 'Guyana', capZh: '喬治城', capEn: 'Georgetown', flag: 'gy' },
+  '600': { zh: '巴拉圭', en: 'Paraguay', capZh: '亞松森', capEn: 'Asunción', flag: 'py' },
+  '604': { zh: '秘魯', en: 'Peru', capZh: '利馬', capEn: 'Lima', flag: 'pe' },
+  '740': { zh: '蘇利南', en: 'Suriname', capZh: '巴拉馬利波', capEn: 'Paramaribo', flag: 'sr' },
+  '858': { zh: '烏拉圭', en: 'Uruguay', capZh: '蒙特維多', capEn: 'Montevideo', flag: 'uy' },
+  '862': { zh: '委內瑞拉', en: 'Venezuela', capZh: '卡拉卡斯', capEn: 'Caracas', flag: 've' },
+  '036': { zh: '澳洲', en: 'Australia', capZh: '坎培拉', capEn: 'Canberra', flag: 'au' },
+  '554': { zh: '紐西蘭', en: 'New Zealand', capZh: '威靈頓', capEn: 'Wellington', flag: 'nz' },
+  '598': { zh: '巴布亞紐幾內亞', en: 'Papua New Guinea', capZh: '莫士比港', capEn: 'Port Moresby', flag: 'pg' },
+  '090': { zh: '索羅門群島', en: 'Solomon Islands', capZh: '荷尼阿拉', capEn: 'Honiara', flag: 'sb' },
+  '548': { zh: '萬那杜', en: 'Vanuatu', capZh: '維拉港', capEn: 'Port Vila', flag: 'vu' },
+  '242': { zh: '斐濟', en: 'Fiji', capZh: '蘇瓦', capEn: 'Suva', flag: 'fj' },
+  '585': { zh: '帛琉', en: 'Palau', capZh: '恩吉魯穆德', capEn: 'Ngerulmud', flag: 'pw' },
+  '583': { zh: '密克羅尼西亞', en: 'Micronesia', capZh: '帕利基爾', capEn: 'Palikir', flag: 'fm' },
+  '584': { zh: '馬紹爾群島', en: 'Marshall Islands', capZh: '馬久羅', capEn: 'Majuro', flag: 'mh' },
+  '520': { zh: '諾魯', en: 'Nauru', capZh: '亞倫', capEn: 'Yaren', flag: 'nr', noteZh: '沒有正式首都，政府設在亞倫區', noteEn: 'No official capital; the government is in Yaren District' },
+  '296': { zh: '吉里巴斯', en: 'Kiribati', capZh: '塔拉瓦', capEn: 'Tarawa', flag: 'ki', noteZh: '島嶼散布在赤道兩側，橫跨換日線', noteEn: 'Its islands straddle the equator and the date line' },
+  '798': { zh: '吐瓦魯', en: 'Tuvalu', capZh: '富納富提', capEn: 'Funafuti', flag: 'tv' },
+  '882': { zh: '薩摩亞', en: 'Samoa', capZh: '阿皮亞', capEn: 'Apia', flag: 'ws' },
+  '776': { zh: '東加', en: 'Tonga', capZh: '努瓜婁發', capEn: "Nuku'alofa", flag: 'to' },
 };
 const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'], AF: ['阿富汗', 'Afghanistan'], IR: ['伊朗', 'Iran'], MM: ['緬甸', 'Myanmar'], TJ: ['塔吉克', 'Tajikistan'], RU: ['俄羅斯', 'Russia'], KZ: ['哈薩克', 'Kazakhstan'], VN: ['越南', 'Vietnam'], PH: ['菲律賓', 'Philippines'], MN: ['蒙古', 'Mongolia'], AZ: ['亞塞拜然', 'Azerbaijan'], EG: ['埃及', 'Egypt'], PK: ['巴基斯坦', 'Pakistan'], TM: ['土庫曼', 'Turkmenistan'], SD: ['蘇丹', 'Sudan'], GR: ['希臘', 'Greece'], BY: ['白俄羅斯', 'Belarus'], PL: ['波蘭', 'Poland'], DE: ['德國', 'Germany'], FR: ['法國', 'France'], NL: ['荷蘭', 'Netherlands'],
   GB: ['英國', 'United Kingdom'], IT: ['義大利', 'Italy'], ES: ['西班牙', 'Spain'], CZ: ['捷克', 'Czechia'], DK: ['丹麥', 'Denmark'], CH: ['瑞士', 'Switzerland'],
   AT: ['奧地利', 'Austria'], HU: ['匈牙利', 'Hungary'], RO: ['羅馬尼亞', 'Romania'], BG: ['保加利亞', 'Bulgaria'], TR: ['土耳其', 'Türkiye'], DZ: ['阿爾及利亞', 'Algeria'],
   TN: ['突尼西亞', 'Tunisia'], MA: ['摩洛哥', 'Morocco'], RS: ['塞爾維亞', 'Serbia'], GE: ['喬治亞', 'Georgia'], FI: ['芬蘭', 'Finland'], LT: ['立陶宛', 'Lithuania'],
-  LV: ['拉脫維亞', 'Latvia'], EE: ['愛沙尼亞', 'Estonia'], SE: ['瑞典', 'Sweden'] };
+  LV: ['拉脫維亞', 'Latvia'], EE: ['愛沙尼亞', 'Estonia'], SE: ['瑞典', 'Sweden'],
+  EH: ['西撒哈拉', 'Western Sahara'], NE: ['尼日', 'Niger'], ML: ['馬利', 'Mali'], TD: ['查德', 'Chad'], SS: ['南蘇丹', 'South Sudan'],
+  SAU: ['沙烏地阿拉伯', 'Saudi Arabia'], ET: ['衣索比亞', 'Ethiopia'], CM: ['喀麥隆', 'Cameroon'], LY: ['利比亞', 'Libya'], NG: ['奈及利亞', 'Nigeria'],
+  UG: ['烏干達', 'Uganda'], TZ: ['坦尚尼亞', 'Tanzania'], ZM: ['尚比亞', 'Zambia'], NA: ['納米比亞', 'Namibia'], CD: ['剛果民主共和國', 'DR Congo'],
+  AO: ['安哥拉', 'Angola'], YE: ['葉門', 'Yemen'], BW: ['波札那', 'Botswana'], ZA: ['南非', 'South Africa'], ZW: ['辛巴威', 'Zimbabwe'],
+  MZ: ['莫三比克', 'Mozambique'], MG: ['馬達加斯加', 'Madagascar'], GL: ['格陵蘭', 'Greenland'], MX: ['墨西哥', 'Mexico'], CU: ['古巴', 'Cuba'],
+  US: ['美國', 'United States'], CO: ['哥倫比亞', 'Colombia'], JM: ['牙買加', 'Jamaica'], VE: ['委內瑞拉', 'Venezuela'], PA: ['巴拿馬', 'Panama'],
+  PR: ['波多黎各', 'Puerto Rico'], NI: ['尼加拉瓜', 'Nicaragua'], HN: ['宏都拉斯', 'Honduras'], FK: ['福克蘭群島', 'Falkland Islands'],
+  CR: ['哥斯大黎加', 'Costa Rica'], ID: ['印尼', 'Indonesia'], TL: ['東帝汶', 'Timor-Leste'], NC: ['新喀里多尼亞', 'New Caledonia'],
+  PF: ['法屬玻里尼西亞', 'French Polynesia'] };
 const T = {
   zh: { sub: n => `${n} 個國家`, done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
         trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
         ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
-        il: ['按住拼圖，拖到地圖上。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
+        il: ['按住拼圖，拖到地圖上。七大洲三大洋關裡，海洋是名牌，拖到正確的海洋上就好。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
         empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
         ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
-        il: ['Press and drag a piece onto the map.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
+        il: ['Press and drag a piece onto the map. In Continents & Oceans, drop each ocean name tag onto its ocean.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
         empty: 'All placed! Hover a country to see its name.', doneBtn: 'Done', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map' },
@@ -452,12 +624,24 @@ async function loadLevel(id) {
   level = id; store.set('geo-level', id);
   MAP = data; W = MAP.W; H = MAP.H;
   byId = {}; MAP.countries.forEach(c => byId[c.id] = c);
-  TARGETS = MAP.countries.filter(c => c.target).map(c => c.id);
-  defs.querySelectorAll('[data-dyn]').forEach(n => n.remove());
-  $('landClip').textContent = ''; $('gVeil').textContent = ''; $('gLines').textContent = '';
+  // oceans in 七大洲三大洋 are name tags, not shapes
+  for (const o of (MAP.oceans || [])) byId['O' + o.code] = { id: 'O' + o.code, ocean: true, code: o.code, at: o.at, bbox: [0, 0, 120, 40], target: true };
+  if (MAP.pickN) chooseTargets(); else TARGETS = Object.values(byId).filter(c => c.target).map(c => c.id);
+  buildLayers();
+  const outlined = !!MAP.outline;
+  $('ocean').style.display = outlined ? 'none' : ''; $('oceanShape').style.display = outlined ? '' : 'none';
+  if (outlined) $('oceanShape').setAttribute('d', MAP.outline);
+  $('mapwrap').style.background = outlined ? 'var(--paper)' : '';
   const img = $('terrainImg'); img.setAttribute('href', `data/${id}.jpg`); img.setAttribute('width', W); img.setAttribute('height', H);
   $('rivMajor').setAttribute('d', MAP.riversMajor); $('rivMinor').setAttribute('d', MAP.riversMinor);
   const oc = $('ocean'); oc.setAttribute('width', W + 4000); oc.setAttribute('height', H + 4000);
+  fitView();
+  const ramp = MAP.legend; $('ramp').style.background = `linear-gradient(90deg, ${ramp.map((c, i) => `${c} ${Math.round(i / (ramp.length - 1) * 100)}%`).join(', ')})`;
+}
+
+function buildLayers() {
+  defs.querySelectorAll('[data-dyn]').forEach(n => n.remove());
+  $('landClip').textContent = ''; $('gVeil').textContent = ''; $('gLines').textContent = '';
   for (const c of MAP.countries) {
     mk('path', { id: 'c-' + c.id, d: c.d, 'data-dyn': 1 }, defs);
     if (c.target) { const cp = mk('clipPath', { id: 'pc-' + c.id, 'data-dyn': 1 }, defs); mk('use', { href: '#c-' + c.id }, cp); }
@@ -467,10 +651,16 @@ async function loadLevel(id) {
       mk('use', { href: '#c-' + c.id, class: 'ctxline' }, $('gLines'));
     }
   }
-  fitView();
-  const ramp = MAP.legend; $('ramp').style.background = `linear-gradient(90deg, ${ramp.map((c, i) => `${c} ${Math.round(i / (ramp.length - 1) * 100)}%`).join(', ')})`;
 }
-
+// 世界大挑戰: draw this game's countries from the pool, countries missed last time first
+function chooseTargets() {
+  const pool = MAP.countries.filter(c => c.pool && INFO[c.id]).map(c => c.id);
+  const missed = store.get(level + '-mistakes', []).filter(id => pool.includes(id)).sort(() => Math.random() - .5).slice(0, 6);
+  const rest = pool.filter(id => !missed.includes(id)).sort(() => Math.random() - .5);
+  const pick = new Set([...missed, ...rest].slice(0, MAP.pickN));
+  MAP.countries.forEach(c => c.target = pick.has(c.id));
+  TARGETS = [...pick];
+}
 // lon/lat -> map units, in the same projection the map data was drawn in
 function projLL(lon, lat) {
   const p = MAP.proj;
@@ -478,6 +668,14 @@ function projLL(lon, lat) {
     const phi = lat * Math.PI / 180, lam = lon * Math.PI / 180;
     const rho = p.R * p.F / Math.pow(Math.tan(Math.PI / 4 + phi / 2), p.n), th = p.n * (lam - p.lam0);
     return [rho * Math.sin(th) - p.xmin, p.ymax - (p.rho0 - rho * Math.cos(th))];
+  }
+  if (p.type === 'ee') {       // Equal Earth
+    const A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796, s3 = Math.sqrt(3);
+    if (lon < p.cut) lon += 360;
+    const lam = lon * Math.PI / 180 - p.lam0, th = Math.asin(s3 / 2 * Math.sin(lat * Math.PI / 180)), t2 = th * th, t6 = t2 * t2 * t2;
+    const x = 2 * s3 * lam * Math.cos(th) / (3 * (9 * A4 * t6 * t2 + 7 * A3 * t6 + 3 * A2 * t2 + A1));
+    const y = th * (A4 * t6 * t2 + A3 * t6 + A2 * t2 + A1);
+    return [x * p.R + p.W / 2, p.H / 2 - y * p.R];
   }
   return [(lon - p.lon0) * p.kx, (p.lat1 - lat) * p.ky];
 }
@@ -500,6 +698,10 @@ function drawLabels() {
 }
 const OFFSETS = [[0, 0], [0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0]];
 function placeLabel(id, g = $('gLabels')) {
+  if (byId[id].ocean) {
+    for (const [x, y] of byId[id].at) { const t = mk('text', { x, y, class: 'lbl oceanname' }, $('gSea')); t.dataset.ocean = id; t.textContent = lang === 'zh' ? INFO[id].zh : INFO[id].en.toUpperCase(); }
+    return;
+  }
   const c = byId[id], info = INFO[id], f = LV[level].labelFix[id] || [0, 0];
   const x0 = c.label[0] + f[0], y0 = c.label[1] + f[1];
   const t = mk('text', { x: x0, y: y0, class: 'lbl place', 'data-id': id }, g);
@@ -527,10 +729,11 @@ function placeLabel(id, g = $('gLabels')) {
 
 // the viewBox always has the map box's own aspect, so the terrain fills it with no cut edge
 function boxAspect() { const r = svg.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r.width / r.height : W / H; }
-function clampW(w) { return Math.min(W, H * boxAspect(), Math.max(MAP.view[2] / 7, w)); }
+// a world map sits on a plain background, so it may show margins; regional maps always fill the box
+function clampW(w) { return Math.min(W, MAP.outline ? Infinity : H * boxAspect(), Math.max(MAP.view[2] / 7, w)); }
 function setView(x, y, w) {
   const A = boxAspect(); w = clampW(w); const h = w / A;
-  x = Math.min(W - w, Math.max(0, x)); y = Math.min(H - h, Math.max(0, y));
+  x = Math.min(W - w, Math.max(0, x)); y = h > H ? (H - h) / 2 : Math.min(H - h, Math.max(0, y));
   vb = [x, y, w, h]; svg.setAttribute('viewBox', vb.join(' '));
   const ctm = svg.getScreenCTM(), z = ctm && ctm.a > 0 ? ctm.a : 1;
   svg.style.setProperty('--z', z);
@@ -613,6 +816,7 @@ $('btnSound').onclick = () => { soundOn = !soundOn; store.set('sea-sound', sound
 /* ---------- game state ---------- */
 let state;
 function newGame() {
+  if (MAP.pickN) { chooseTargets(); buildLayers(); }
   const prevMiss = store.get(level + '-mistakes', []).filter(id => TARGETS.includes(id));
   const rest = TARGETS.filter(id => !prevMiss.includes(id)).sort(() => Math.random() - .5);
   state = { order: [...prevMiss.sort(() => Math.random() - .5), ...rest], placed: [], tries: {}, score: 0, started: false, t0: 0, elapsed: 0, finished: false };
@@ -621,7 +825,7 @@ function newGame() {
   $('gLines').querySelectorAll('[data-placed]').forEach(n => n.remove());
   $('gHits').textContent = '';
   const gs = $('gSlots'); gs.textContent = '';
-  for (const id of TARGETS) mk('use', { href: '#c-' + id, class: 'slot', id: 'slot-' + id }, gs);
+  for (const id of TARGETS) if (!byId[id].ocean) mk('use', { href: '#c-' + id, class: 'slot', id: 'slot-' + id }, gs);
   $('card').hidden = true; fitView();
   renderTray(); drawLabels(); renderStats();
 }
@@ -636,7 +840,15 @@ function renderStats() {
 }
 
 /* ---------- tray ---------- */
+function tagSVG(id) {
+  const s = mk('svg', { viewBox: '0 0 120 40', preserveAspectRatio: 'xMidYMid meet' });
+  mk('rect', { x: 1, y: 1, width: 118, height: 38, rx: 19, fill: '#2f7f8c', stroke: '#fff', 'stroke-width': 2 }, s);
+  const t = mk('text', { x: 60, y: 26, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 700, fill: '#fff', 'font-family': 'var(--font-display)', 'letter-spacing': '.15em' }, s);
+  t.textContent = lang === 'zh' ? INFO[id].zh : INFO[id].en.replace(' Ocean', '');
+  return s;
+}
 function pieceSVG(id, pad) {
+  if (byId[id].ocean) return tagSVG(id);
   const c = byId[id]; const [x, y, w, h] = c.bbox; const p = pad != null ? pad : Math.max(w, h) * .04;
   const minSpan = pad != null ? 0 : 46; const ex = Math.max(0, (minSpan - w - 2 * p) / 2), ey = Math.max(0, (minSpan * .75 - h - 2 * p) / 2);
   const s = mk('svg', { viewBox: `${x - p - ex} ${y - p - ey} ${w + 2 * p + 2 * ex} ${h + 2 * p + 2 * ey}`, preserveAspectRatio: 'xMidYMid meet' });
@@ -698,7 +910,7 @@ function onPieceDown(e) {
 }
 function makeGhost() {
   const { id, el } = drag; const c = byId[id];
-  const g = pieceSVG(id, 0); g.classList.add('ghost'); g.querySelector('.piece-shape').classList.remove('piece-shape');
+  const g = pieceSVG(id, 0); g.classList.add('ghost'); const ps = g.querySelector('.piece-shape'); if (ps) ps.classList.remove('piece-shape');
   document.body.appendChild(g);
   // start at the thumbnail, then grow to true map scale
   const r = el.querySelector('svg').getBoundingClientRect();
@@ -710,7 +922,7 @@ function makeGhost() {
   startClock();
 }
 function place(g, x, y, w, h) { g.style.transform = `translate(${x}px, ${y}px)`; g.style.width = w + 'px'; g.style.height = h + 'px'; g._pos = [x, y, w, h]; }
-function ghostTarget(d, px, py) { const c = byId[d.id]; const s = mapScale(); const w = c.bbox[2] * s, h = c.bbox[3] * s; return [px - d.fx * w, py - d.fy * h, w, h]; }
+function ghostTarget(d, px, py) { const c = byId[d.id]; const s = c.ocean ? 1 : mapScale(); const w = c.bbox[2] * s, h = c.bbox[3] * s; return [px - d.fx * w, py - d.fy * h, w, h]; }
 function onPieceMove(e) {
   if (!drag) return;
   if (e.buttons === 0) { onPieceUp(e); return; }   // released outside the page
@@ -732,6 +944,7 @@ function onPieceUp(e) {
   if (!overMap) { bounceBack(d.ghost, d.el); return; }
   const [gx, gy] = ghostTarget(d, e.clientX, e.clientY);
   const c = byId[d.id];
+  if (c.ocean) { oceanAt(...clientToMap(gx + 60, gy + 20)) === c.code ? correct(d.id, d.ghost) : wrong(d.id, d.ghost, d.el); return; }
   const [mx, my] = clientToMap(gx, gy);
   const distPx = Math.hypot(mx - c.bbox[0], my - c.bbox[1]) * mapScale();
   const sw = c.bbox[2] * mapScale(), sh = c.bbox[3] * mapScale();
@@ -745,6 +958,15 @@ function onPieceUp(e) {
     inside = cx >= c.bbox[0] - pad && cx <= c.bbox[0] + c.bbox[2] + pad && cy >= c.bbox[1] - pad && cy <= c.bbox[1] + c.bbox[3] + pad;
   }
   if (distPx <= tol || inside) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
+}
+function oceanAt(mx, my) {
+  const g = MAP.oceanGrid; if (!g) return null;
+  const c0 = Math.floor(mx / g.step), r0 = Math.floor(my / g.step);
+  for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]) {   // a little slack at the coast
+    const row = g.data[r0 + dr]; const ch = row && row[c0 + dc];
+    if (ch && ch !== '.') return ch;
+  }
+  return null;
 }
 function bounceBack(g, el) {
   if (!el.isConnected) { g.style.opacity = 0; setTimeout(() => g.remove(), 200); return; }
@@ -761,7 +983,15 @@ function wrong(id, g, el) {
 function correct(id, g) {
   state.tries[id]++;
   const n = state.tries[id]; const pts = Math.max(0, 4 - n); state.score += pts;
-  const c = byId[id]; const ctm = svg.getScreenCTM(); const p = new DOMPoint(c.bbox[0], c.bbox[1]).matrixTransform(ctm);
+  const c = byId[id]; const ctm = svg.getScreenCTM();
+  if (c.ocean) {
+    sfx('ok'); sayName(INFO[id]);
+    g.classList.add('anim'); g.style.opacity = 0;
+    setTimeout(() => { g.remove(); state.placed.push(id); placeLabel(id); removeTile(id); renderStats(); showCard(id, n, pts);
+      if (state.placed.length === TARGETS.length) finish(); }, 230);
+    return;
+  }
+  const p = new DOMPoint(c.bbox[0], c.bbox[1]).matrixTransform(ctm);
   g.classList.add('anim'); place(g, p.x, p.y, c.bbox[2] * ctm.a, c.bbox[3] * ctm.a);
   sfx('ok'); sayName(INFO[id]);
   setTimeout(() => {
@@ -779,7 +1009,7 @@ function correct(id, g) {
 function showCard(id, n, pts) {
   const i = INFO[id], t = T[lang], card = $('card');
   const primary = lang === 'zh' ? i.zh : i.en, secondary = lang === 'zh' ? i.en : i.zh;
-  card.innerHTML = `<div class="head"><img alt="" src="${FLAGS[i.flag]}"><div><div class="zh">${primary}</div><div class="en">${secondary}</div></div><button class="x" aria-label="關閉">×</button></div>
+  card.innerHTML = `<div class="head${i.flag ? '' : ' noflag'}">${i.flag ? `<img alt="" src="${FLAGS[i.flag]}">` : ''}<div><div class="zh">${primary}</div><div class="en">${secondary}</div></div><button class="x" aria-label="關閉">×</button></div>
     <dl>${i.capZh ? `<dt>${t.capital}</dt><dd>${i.capZh}　${i.capEn}</dd>` : ''}</dl>${i.noteZh ? `<p class="note">${lang === 'zh' ? i.noteZh : i.noteEn}</p>` : ''}<div class="pts">${t.firstTry(n, pts)}</div>`;
   card.querySelector('.x').onclick = () => card.hidden = true;
   card.hidden = false; clearTimeout(card._t); card._t = setTimeout(() => card.hidden = true, 4000);
@@ -814,7 +1044,7 @@ function renderResult(stars, missed, bt, bs) {
 /* ---------- language ---------- */
 function applyLang() {
   const t = T[lang]; document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
-  $('t-title').textContent = LV[level][lang].title; $('t-sub').textContent = t.sub(LEVEL_META[level].n); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
+  $('t-title').textContent = LV[level][lang].title; $('t-sub').textContent = LV[level][lang].sub || t.sub(LEVEL_META[level].n); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
   $('t-restart').textContent = t.restart; $('t-tray').textContent = t.tray; $('t-trayhint').textContent = t.trayhint;
   $('t-elev').textContent = t.elev; $('t-elev2').textContent = t.elev2;
   $('ticks').innerHTML = t.ticks.map(s => `<span>${s}</span>`).join('');
@@ -835,7 +1065,7 @@ function renderLevels() {
     for (const id of ids) {
       const n = LEVEL_META[id].n, best = store.get(id + '-best', null);
       const b = document.createElement('button'); b.className = 'lvl' + (id === level ? ' cur' : ''); b.id = 'lvl-' + id;
-      b.innerHTML = `<b>${LV[id][lang].region}</b><span>${t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
+      b.innerHTML = `<b>${LV[id][lang].region}</b><span>${LV[id][lang].sub || t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
       b.onclick = () => startLevel(id);
       box.appendChild(b);
     }
