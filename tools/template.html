@@ -106,6 +106,7 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
 .card dt { color: var(--ink-soft); }
 .card dd { margin: 0; }
+.card .note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
 .card .pts { font-size: 13px; color: var(--good); font-weight: 700; border-top: 1px solid var(--rule); padding-top: 8px; }
 
 .toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--bad); color: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; box-shadow: var(--shadow); }
@@ -136,7 +137,7 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 
 /* overlays */
 .veil { position: fixed; inset: 0; background: rgba(12,28,30,.42); display: grid; place-items: center; z-index: 40; padding: 16px; }
-.dialog { background: var(--sheet); color: var(--ink); border-radius: 14px; box-shadow: var(--shadow); width: min(460px, 100%); padding: 26px 28px 24px; display: grid; gap: 16px; max-height: 90vh; overflow: auto; }
+.dialog { background: var(--sheet); color: var(--ink); border-radius: 14px; box-shadow: var(--shadow); width: min(560px, 100%); padding: 26px 28px 24px; display: grid; gap: 16px; max-height: 90vh; overflow: auto; }
 .dialog h2 { font-family: var(--font-display); font-size: 26px; margin: 0; text-wrap: balance; }
 .dialog p { margin: 0; line-height: 1.65; color: var(--ink-soft); }
 .dialog ol { margin: 0; padding-left: 1.3em; line-height: 1.8; }
@@ -152,7 +153,10 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .res .k { font-size: 12px; color: var(--ink-soft); }
 .res .v { font-family: var(--font-data); font-size: 20px; font-variant-numeric: tabular-nums; }
 .res .best { font-size: 11px; color: var(--sienna); }
-.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.conthead { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+.conthead b { font-size: 14px; letter-spacing: .08em; }
+.conthead span { font-size: 12px; color: var(--ink-soft); }
 .lvl { text-align: left; border: 1px solid var(--rule); background: var(--paper); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; }
 .lvl:hover { border-color: var(--sienna); background: var(--sienna-tint); }
 .lvl.cur { border-color: var(--sienna); box-shadow: inset 0 0 0 1px var(--sienna); }
@@ -254,13 +258,25 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 <script>
 const LEVELS_DATA = __LEVELS__;
 const FLAGS = __FLAGS__;
+const CONTINENTS = { asia: { zh: '亞洲', en: 'Asia' } };
 const LV = {
-  sea: { zh: { region: '東南亞', title: '東南亞地形拼圖' }, en: { region: 'Southeast Asia', title: 'Southeast Asia Terrain Puzzle' },
+  ea:  { cont: 'asia', zh: { region: '東亞', title: '東亞地形拼圖' }, en: { region: 'East Asia', title: 'East Asia Terrain Puzzle' },
+         seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', lon: 139, lat: 27 }, { zh: '南海', en: 'SOUTH CHINA SEA', lon: 115.5, lat: 18.5 } ],
+         labelFix: { '344': [16, 14], '446': [-18, 12], '158': [4, 2], '410': [2, 4], '408': [0, -2] } },
+  sea: { cont: 'asia', zh: { region: '東南亞', title: '東南亞地形拼圖' }, en: { region: 'Southeast Asia', title: 'Southeast Asia Terrain Puzzle' },
          seas: [ { zh: '太平洋', en: 'PACIFIC OCEAN', x: 930, y: 300 }, { zh: '印度洋', en: 'INDIAN OCEAN', x: 150, y: 690 }, { zh: '南海', en: 'SOUTH CHINA SEA', x: 470, y: 330 } ],
          labelFix: { '702': [10, 14], '096': [0, -14], '626': [0, 26], '360': [70, 30], '608': [10, 0] } },
-  sa:  { zh: { region: '南亞', title: '南亞地形拼圖' }, en: { region: 'South Asia', title: 'South Asia Terrain Puzzle' },
+  sa:  { cont: 'asia', zh: { region: '南亞', title: '南亞地形拼圖' }, en: { region: 'South Asia', title: 'South Asia Terrain Puzzle' },
          seas: [ { zh: '阿拉伯海', en: 'ARABIAN SEA', x: 150, y: 470 }, { zh: '孟加拉灣', en: 'BAY OF BENGAL', x: 575, y: 455 }, { zh: '印度洋', en: 'INDIAN OCEAN', x: 520, y: 730 } ],
          labelFix: { '462': [30, 2], '064': [0, -8], '524': [0, 0], '144': [0, 4], '050': [-4, 6] } },
+  ca:  { cont: 'asia', zh: { region: '中亞', title: '中亞地形拼圖' }, en: { region: 'Central Asia', title: 'Central Asia Terrain Puzzle' },
+         seas: [ { zh: '裏海', en: 'CASPIAN SEA', lon: 50.6, lat: 41.8 } ],
+         labelFix: { '417': [4, 2], '762': [0, 4] } },
+  wa:  { cont: 'asia', hideCtx: ['RU'], zh: { region: '西亞', title: '西亞地形拼圖' }, en: { region: 'West Asia', title: 'West Asia Terrain Puzzle' },
+         seas: [ { zh: '地中海', en: 'MEDITERRANEAN', lon: 28.5, lat: 33.6 }, { zh: '黑海', en: 'BLACK SEA', lon: 34.5, lat: 42.4 },
+                 { zh: '裏海', en: 'CASPIAN', lon: 50.8, lat: 41.4 }, { zh: '紅海', en: 'RED SEA', lon: 38.6, lat: 20.2 },
+                 { zh: '波斯灣', en: 'PERSIAN GULF', lon: 51.25, lat: 27.35, size: .62, rot: 33 }, { zh: '阿拉伯海', en: 'ARABIAN SEA', lon: 63.5, lat: 16.5 } ],
+         labelFix: { '048': [0, -12], '634': [10, 8], '422': [-18, -2], '376': [-20, 8], '275': [18, -8], '400': [26, 22], '196': [0, -10], '414': [0, -6], '784': [6, 4], '051': [-4, 4], '268': [0, -4] } },
 };
 
 const INFO = {
@@ -282,19 +298,54 @@ const INFO = {
   '064': { zh: '不丹', en: 'Bhutan', capZh: '辛布', capEn: 'Thimphu', flag: 'bt' },
   '144': { zh: '斯里蘭卡', en: 'Sri Lanka', capZh: '斯里賈亞瓦德納普拉科特', capEn: 'Sri Jayawardenepura Kotte', flag: 'lk' },
   '462': { zh: '馬爾地夫', en: 'Maldives', capZh: '馬列', capEn: 'Malé', flag: 'mv' },
+  '158': { zh: '台灣', en: 'Taiwan', capZh: '臺北', capEn: 'Taipei', flag: 'tw' },
+  '156': { zh: '中國', en: 'China', capZh: '北京', capEn: 'Beijing', flag: 'cn' },
+  '392': { zh: '日本', en: 'Japan', capZh: '東京', capEn: 'Tokyo', flag: 'jp' },
+  '410': { zh: '南韓', en: 'South Korea', capZh: '首爾', capEn: 'Seoul', flag: 'kr' },
+  '408': { zh: '北韓', en: 'North Korea', capZh: '平壤', capEn: 'Pyongyang', flag: 'kp' },
+  '496': { zh: '蒙古', en: 'Mongolia', capZh: '烏蘭巴托', capEn: 'Ulaanbaatar', flag: 'mn' },
+  '344': { zh: '香港', en: 'Hong Kong', flag: 'hk', noteZh: '中國的特別行政區', noteEn: 'A special administrative region of China' },
+  '446': { zh: '澳門', en: 'Macau', flag: 'mo', noteZh: '中國的特別行政區', noteEn: 'A special administrative region of China' },
+  '398': { zh: '哈薩克', en: 'Kazakhstan', capZh: '阿斯塔納', capEn: 'Astana', flag: 'kz' },
+  '860': { zh: '烏茲別克', en: 'Uzbekistan', capZh: '塔什干', capEn: 'Tashkent', flag: 'uz' },
+  '795': { zh: '土庫曼', en: 'Turkmenistan', capZh: '阿什哈巴德', capEn: 'Ashgabat', flag: 'tm' },
+  '417': { zh: '吉爾吉斯', en: 'Kyrgyzstan', capZh: '比斯凱克', capEn: 'Bishkek', flag: 'kg' },
+  '762': { zh: '塔吉克', en: 'Tajikistan', capZh: '杜尚別', capEn: 'Dushanbe', flag: 'tj' },
+  '364': { zh: '伊朗', en: 'Iran', capZh: '德黑蘭', capEn: 'Tehran', flag: 'ir' },
+  '004': { zh: '阿富汗', en: 'Afghanistan', capZh: '喀布爾', capEn: 'Kabul', flag: 'af' },
+  '792': { zh: '土耳其', en: 'Türkiye', capZh: '安卡拉', capEn: 'Ankara', flag: 'tr' },
+  '196': { zh: '賽普勒斯', en: 'Cyprus', capZh: '尼古西亞', capEn: 'Nicosia', flag: 'cy' },
+  '268': { zh: '喬治亞', en: 'Georgia', capZh: '提比里斯', capEn: 'Tbilisi', flag: 'ge' },
+  '051': { zh: '亞美尼亞', en: 'Armenia', capZh: '葉里溫', capEn: 'Yerevan', flag: 'am' },
+  '031': { zh: '亞塞拜然', en: 'Azerbaijan', capZh: '巴庫', capEn: 'Baku', flag: 'az' },
+  '368': { zh: '伊拉克', en: 'Iraq', capZh: '巴格達', capEn: 'Baghdad', flag: 'iq' },
+  '760': { zh: '敘利亞', en: 'Syria', capZh: '大馬士革', capEn: 'Damascus', flag: 'sy' },
+  '422': { zh: '黎巴嫩', en: 'Lebanon', capZh: '貝魯特', capEn: 'Beirut', flag: 'lb' },
+  '376': { zh: '以色列', en: 'Israel', capZh: '耶路撒冷', capEn: 'Jerusalem', flag: 'il',
+           noteZh: '首都地位有爭議，多數國家的大使館設在特拉維夫', noteEn: 'Its status is disputed; most embassies are in Tel Aviv' },
+  '275': { zh: '巴勒斯坦', en: 'Palestine', capZh: '東耶路撒冷（宣稱）', capEn: 'East Jerusalem (claimed)', flag: 'ps',
+           noteZh: '政府設在拉姆安拉；包括約旦河西岸與加薩走廊', noteEn: 'The government sits in Ramallah; made up of the West Bank and Gaza' },
+  '400': { zh: '約旦', en: 'Jordan', capZh: '安曼', capEn: 'Amman', flag: 'jo' },
+  '682': { zh: '沙烏地阿拉伯', en: 'Saudi Arabia', capZh: '利雅德', capEn: 'Riyadh', flag: 'sa' },
+  '887': { zh: '葉門', en: 'Yemen', capZh: '沙那', capEn: "Sana'a", flag: 'ye' },
+  '512': { zh: '阿曼', en: 'Oman', capZh: '馬斯開特', capEn: 'Muscat', flag: 'om' },
+  '784': { zh: '阿拉伯聯合大公國', en: 'United Arab Emirates', capZh: '阿布達比', capEn: 'Abu Dhabi', flag: 'ae' },
+  '634': { zh: '卡達', en: 'Qatar', capZh: '杜哈', capEn: 'Doha', flag: 'qa' },
+  '048': { zh: '巴林', en: 'Bahrain', capZh: '麥納瑪', capEn: 'Manama', flag: 'bh' },
+  '414': { zh: '科威特', en: 'Kuwait', capZh: '科威特市', capEn: 'Kuwait City', flag: 'kw' },
 };
-const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'], AF: ['阿富汗', 'Afghanistan'], IR: ['伊朗', 'Iran'], MM: ['緬甸', 'Myanmar'], TJ: ['塔吉克', 'Tajikistan'] };
+const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', 'Taiwan'], PG: ['巴布亞紐幾內亞', 'Papua New Guinea'], AU: ['澳洲', 'Australia'], BD: ['孟加拉', 'Bangladesh'], AF: ['阿富汗', 'Afghanistan'], IR: ['伊朗', 'Iran'], MM: ['緬甸', 'Myanmar'], TJ: ['塔吉克', 'Tajikistan'], RU: ['俄羅斯', 'Russia'], KZ: ['哈薩克', 'Kazakhstan'], VN: ['越南', 'Vietnam'], PH: ['菲律賓', 'Philippines'], MN: ['蒙古', 'Mongolia'], AZ: ['亞塞拜然', 'Azerbaijan'], EG: ['埃及', 'Egypt'], PK: ['巴基斯坦', 'Pakistan'], TM: ['土庫曼', 'Turkmenistan'], SD: ['蘇丹', 'Sudan'], GR: ['希臘', 'Greece'] };
 const T = {
   zh: { sub: n => `${n} 個國家`, done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
         trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
-        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過',
+        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', contDone: (d, n) => `完成 ${d} / ${n} 區`,
         il: ['按住拼圖，拖到地圖上。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
         empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
-        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet',
+        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', contDone: (d, n) => `${d} of ${n} done`,
         il: ['Press and drag a piece onto the map.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
@@ -349,9 +400,17 @@ function loadLevel(id) {
 function drawLabels() {
   const g = $('gLabels'); g.textContent = '';
   const gs = $('gSea'); gs.textContent = '';
-  for (const s of LV[level].seas) { const t = mk('text', { x: s.x + MAP.view[0], y: s.y + MAP.view[1], class: 'lbl sea' }, gs); t.textContent = lang === 'zh' ? s.zh : s.en; if (lang === 'en') t.style.letterSpacing = '.2em'; }
+  for (const s of LV[level].seas) { const [sx, sy] = s.lon != null ? [(s.lon - MAP.proj[0]) * MAP.proj[2], (MAP.proj[1] - s.lat) * MAP.proj[3]] : [s.x + MAP.view[0], s.y + MAP.view[1]];
+    const t = mk('text', { x: sx, y: sy, class: 'lbl sea' }, gs);
+    if (s.size) { t.style.fontSize = `calc(${17 * s.size}px / var(--z, 1))`; t.style.letterSpacing = '.12em'; }
+    if (s.rot) t.setAttribute('transform', `rotate(${s.rot} ${sx} ${sy})`); t.textContent = lang === 'zh' ? s.zh : s.en; if (lang === 'en') t.style.letterSpacing = '.2em'; }
   for (const c of MAP.countries) {
-    if (c.ctx) { const t = mk('text', { x: c.label[0], y: c.label[1], class: 'lbl ctx' }, g); t.textContent = CTX[c.ctx][lang === 'zh' ? 0 : 1]; }
+    if (c.ctx && !(LV[level].hideCtx || []).includes(c.ctx)) {
+      // keep neighbours' names inside the opening view so they are never cut at the edge
+      const [vx, vy, vw, vh] = MAP.view, m = 40;
+      const x = Math.min(vx + vw - m, Math.max(vx + m, c.label[0])), y = Math.min(vy + vh - 20, Math.max(vy + 24, c.label[1]));
+      const t = mk('text', { x, y, class: 'lbl ctx' }, g); t.textContent = CTX[c.ctx][lang === 'zh' ? 0 : 1];
+    }
   }
   for (const id of state.placed) placeLabel(id, g);
 }
@@ -595,7 +654,7 @@ function showCard(id, n, pts) {
   const i = INFO[id], t = T[lang], card = $('card');
   const primary = lang === 'zh' ? i.zh : i.en, secondary = lang === 'zh' ? i.en : i.zh;
   card.innerHTML = `<div class="head"><img alt="" src="${FLAGS[i.flag]}"><div><div class="zh">${primary}</div><div class="en">${secondary}</div></div><button class="x" aria-label="關閉">×</button></div>
-    <dl><dt>${t.capital}</dt><dd>${i.capZh}　${i.capEn}</dd></dl><div class="pts">${t.firstTry(n, pts)}</div>`;
+    <dl>${i.capZh ? `<dt>${t.capital}</dt><dd>${i.capZh}　${i.capEn}</dd>` : ''}</dl>${i.noteZh ? `<p class="note">${lang === 'zh' ? i.noteZh : i.noteEn}</p>` : ''}<div class="pts">${t.firstTry(n, pts)}</div>`;
   card.querySelector('.x').onclick = () => card.hidden = true;
   card.hidden = false; clearTimeout(card._t); card._t = setTimeout(() => card.hidden = true, 4000);
 }
@@ -641,12 +700,19 @@ function applyLang() {
 }
 function renderLevels() {
   const t = T[lang], box = $('levels'); box.textContent = '';
-  for (const id of Object.keys(LV)) {
-    const n = LEVELS_DATA[id].map.countries.filter(c => c.target).length, best = store.get(id + '-best', null);
-    const b = document.createElement('button'); b.className = 'lvl' + (id === level ? ' cur' : ''); b.id = 'lvl-' + id;
-    b.innerHTML = `<b>${LV[id][lang].region}</b><span>${t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
-    b.onclick = () => startLevel(id);
-    box.appendChild(b);
+  for (const cid of Object.keys(CONTINENTS)) {
+    const ids = Object.keys(LV).filter(id => LV[id].cont === cid && LEVELS_DATA[id]);
+    const done = ids.filter(id => store.get(id + '-best', null)).length;
+    const head = document.createElement('div'); head.className = 'conthead';
+    head.innerHTML = `<b>${CONTINENTS[cid][lang]}</b><span>${t.contDone(done, ids.length)}</span>`;
+    box.appendChild(head);
+    for (const id of ids) {
+      const n = LEVELS_DATA[id].map.countries.filter(c => c.target).length, best = store.get(id + '-best', null);
+      const b = document.createElement('button'); b.className = 'lvl' + (id === level ? ' cur' : ''); b.id = 'lvl-' + id;
+      b.innerHTML = `<b>${LV[id][lang].region}</b><span>${t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
+      b.onclick = () => startLevel(id);
+      box.appendChild(b);
+    }
   }
 }
 function openLevels(fromGame) {

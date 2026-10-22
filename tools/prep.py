@@ -19,6 +19,19 @@ REGIONS = {
     'sa': dict(box=(59.0, 99.0, -2.0, 38.0), clat=18,
                targets=['356', '586', '050', '524', '064', '144', '462'],
                ctx={'156': 'CN', '004': 'AF', '364': 'IR', '104': 'MM', '762': 'TJ'}),
+    # East Asia: 8
+    'ea': dict(box=(73.0, 147.0, 17.0, 54.0), clat=36,
+               targets=['158', '156', '392', '410', '408', '496', '344', '446'],
+               ctx={'643': 'RU', '356': 'IN', '398': 'KZ', '104': 'MM', '704': 'VN', '608': 'PH'}),
+    # Central Asia: 5
+    'ca': dict(box=(45.0, 89.0, 34.0, 56.0), clat=45,
+               targets=['398', '860', '795', '417', '762'],
+               ctx={'643': 'RU', '156': 'CN', '364': 'IR', '004': 'AF', '496': 'MN', '031': 'AZ'}),
+    # West Asia: 20
+    'wa': dict(box=(25.0, 76.0, 11.0, 43.5), clat=27,
+               targets=['364', '004', '792', '196', '268', '051', '031', '368', '760', '422', '376', '275',
+                        '400', '682', '887', '512', '784', '634', '048', '414'],
+               ctx={'818': 'EG', '586': 'PK', '643': 'RU', '795': 'TM', '729': 'SD', '300': 'GR'}),
 }
 CFG = REGIONS[REGION]
 CORE = CFG['box']              # the area the game opens on
@@ -35,7 +48,7 @@ def proj(lon, lat, z=None):
 
 TARGET = CFG['targets']
 CONTEXT_LABEL = CFG['ctx']
-TINY = {'702', '462'}         # keep every islet of these countries
+TINY = {'702', '462', '344', '446', '048'}   # keep every islet of these
 def path_of(geom, prec=1):
     def ring(coords):
         pts = [f"{x:.{prec}f} {y:.{prec}f}" for x, y in coords[:-1]]
@@ -52,10 +65,17 @@ bbox_geo = box(LON0 - 1, LAT0 - 1, LON1 + 1, LAT1 + 1)
 view = box(0, 0, W, H)
 countries = json.load(open(GEO + 'countries50.geojson'))['features']
 # the 1:50m Maldives has only a couple of atolls; take the full chain from the 1:10m data
-DETAIL = {f['id']: f['geometry'] for f in json.load(open(GEO + 'countries10.geojson'))['features'] if f.get('id') in ('462',)}
+DETAIL = {f['id']: f['geometry'] for f in json.load(open(GEO + 'countries10.geojson'))['features'] if f.get('id') in ('462', '344', '446', '048')}
 for f in countries:
     if f.get('id') in DETAIL:
         f['geometry'] = DETAIL[f['id']]
+# Northern Cyprus is drawn as its own unit; the puzzle piece is the whole island of Cyprus
+MERGE = {'N. Cyprus': '196'}
+for name, into in MERGE.items():
+    part = next(f for f in countries if f['properties']['name'] == name)
+    whole = next(f for f in countries if f.get('id') == into)
+    whole['geometry'] = mapping(shape(whole['geometry']).union(shape(part['geometry'])).buffer(0.001).buffer(-0.001))
+    countries.remove(part)
 out_c = []
 land_polys = []
 for f in countries:
@@ -69,7 +89,9 @@ for f in countries:
     f['id'] = f.get('id') or f['properties']['name']
     is_t = f['id'] in TARGET
     tol = 0.12 if is_t else 0.35
-    if f['id'] == '462':
+    if f['id'] in ('446', '048'):
+        gp = gp.buffer(0.9).simplify(0.15)   # Macau and Bahrain are only a few km across
+    elif f['id'] == '462':
         # join the islets into one continuous chain you can see and grab (no atoll holes)
         gp = gp.buffer(4.0).buffer(-1.6)
         parts = gp.geoms if hasattr(gp, 'geoms') else [gp]
@@ -160,7 +182,7 @@ out[~mask_d] = [120, 190, 200]
 terr_img = Image.fromarray(out.astype(np.uint8))
 terr_img.save(OUT + f'/terrain_preview_{REGION}.png')
 buf = io.BytesIO()
-terr_img.save(buf, 'JPEG', quality=84, optimize=True, progressive=True)
+terr_img.save(buf, 'JPEG', quality=80, optimize=True, progressive=True)
 terr_b64 = base64.b64encode(buf.getvalue()).decode()
 
 # Legend: order land colors by elevation proxy (three-globe topology bump map)
@@ -184,6 +206,7 @@ for i in range(6):
 
 vx0, vy0 = proj(CORE[0], CORE[3]); vx1, vy1 = proj(CORE[1], CORE[2])
 data = {'W': round(W, 1), 'H': round(H, 1), 'S': S, 'countries': out_c,
+        'proj': [LON0, LAT1, round(K * C, 5), K],
         'view': [round(float(vx0), 1), round(float(vy0), 1), round(float(vx1 - vx0), 1), round(float(vy1 - vy0), 1)],
         'riversMajor': ''.join(riv_major), 'riversMinor': ''.join(riv_minor), 'legend': legend}
 json.dump(data, open(OUT + f'/mapdata_{REGION}.json', 'w'))
