@@ -70,7 +70,10 @@ for f in countries:
     is_t = f['id'] in TARGET
     tol = 0.12 if is_t else 0.35
     if f['id'] == '462':
-        gp = gp.buffer(2.2).buffer(-0.8).simplify(0.25)   # join the islets into one chain you can see and grab
+        # join the islets into one continuous chain you can see and grab (no atoll holes)
+        gp = gp.buffer(4.0).buffer(-1.6)
+        parts = gp.geoms if hasattr(gp, 'geoms') else [gp]
+        gp = MultiPolygon([Polygon(q.exterior) for q in parts]).simplify(0.3)
     else:
         gp = gp.simplify(tol, preserve_topology=True)
     if not is_t:

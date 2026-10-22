@@ -551,7 +551,15 @@ function onPieceUp(e) {
   const distPx = Math.hypot(mx - c.bbox[0], my - c.bbox[1]) * mapScale();
   const sw = c.bbox[2] * mapScale(), sh = c.bbox[3] * mapScale();
   const tol = Math.min(sw, sh) < 40 ? 60 : Math.max(34, Math.min(52, Math.min(sw, sh) * .35));
-  if (distPx <= tol) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
+  // small or thin countries (Maldives, Singapore, Brunei, Bhutan): anywhere along the country counts,
+  // as long as the piece's centre lands inside the country's box, padded a little
+  let inside = false;
+  if (Math.min(sw, sh) < 40) {
+    const s = mapScale(), pad = 26 / s;
+    const [cx, cy] = clientToMap(gx + sw / 2, gy + sh / 2);
+    inside = cx >= c.bbox[0] - pad && cx <= c.bbox[0] + c.bbox[2] + pad && cy >= c.bbox[1] - pad && cy <= c.bbox[1] + c.bbox[3] + pad;
+  }
+  if (distPx <= tol || inside) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
 }
 function bounceBack(g, el) {
   if (!el.isConnected) { g.style.opacity = 0; setTimeout(() => g.remove(), 200); return; }
