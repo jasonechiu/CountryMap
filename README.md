@@ -14,6 +14,7 @@
 - 直接用瀏覽器打開 `index.html`，不需要安裝任何東西。
 - 開頭先選區域；遊戲中可以按右上角「換區域」。
 - 按住拼圖拖到地圖上；放錯會彈回，可以再試。
+- 全部放好後，按「完成」可以看拼好的地圖。
 - 第一次就放對得 3 分，第二次 2 分，第三次 1 分。
 - 滾輪可以放大地圖，新加坡、汶萊這類小國比較好放。
 - 右上角可以切換中文／English、開關音效。
@@ -40,6 +41,7 @@
 ```bash
 # 1. 下載原始資料到 ~/geo（prep.py 預設讀取 /root/geo/，可自行修改 GEO 變數）
 npm i world-atlas topojson-client flag-icons three-globe
+# 用 topojson-client 把 countries-50m.json、countries-10m.json 轉成 countries50.geojson、countries10.geojson
 pip download basemap-data==2.0.0 --no-deps    # 取出 etopo1.jpg、shadedrelief.jpg
 curl -O https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson
 
@@ -56,5 +58,5 @@ python3 tools/build.py <輸出資料夾> index.html
 - 地形色彩：NOAA ETOPO1 地形圖與 Natural Earth 陰影地形圖，取自 [basemap-data](https://pypi.org/project/basemap-data/)
 - 國旗：[flag-icons](https://github.com/lipis/flag-icons)（MIT）
 - 國界採用 Natural Earth 的預設畫法；喀什米爾等有爭議的地區依實際控制線劃分。
-- 馬爾地夫的環礁在 1:50m 資料中只有少數幾塊，遊戲中略為放大以便拖曳。
+- 馬爾地夫改用 1:10m 資料的完整環礁鏈，並把小島連成一長條，方便看見和拖曳。
 - 海拔色階圖例只標示「平原、丘陵、山地、高山」的相對高低，不是精確的公尺數。

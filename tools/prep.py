@@ -51,6 +51,11 @@ def path_of(geom, prec=1):
 bbox_geo = box(LON0 - 1, LAT0 - 1, LON1 + 1, LAT1 + 1)
 view = box(0, 0, W, H)
 countries = json.load(open(GEO + 'countries50.geojson'))['features']
+# the 1:50m Maldives has only a couple of atolls; take the full chain from the 1:10m data
+DETAIL = {f['id']: f['geometry'] for f in json.load(open(GEO + 'countries10.geojson'))['features'] if f.get('id') in ('462',)}
+for f in countries:
+    if f.get('id') in DETAIL:
+        f['geometry'] = DETAIL[f['id']]
 out_c = []
 land_polys = []
 for f in countries:
@@ -65,7 +70,7 @@ for f in countries:
     is_t = f['id'] in TARGET
     tol = 0.12 if is_t else 0.35
     if f['id'] == '462':
-        gp = gp.buffer(0.9).simplify(0.2)   # atolls are too small to see or grab at true size
+        gp = gp.buffer(2.2).buffer(-0.8).simplify(0.25)   # join the islets into one chain you can see and grab
     else:
         gp = gp.simplify(tol, preserve_topology=True)
     if not is_t:

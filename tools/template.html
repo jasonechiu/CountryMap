@@ -291,14 +291,14 @@ const T = {
         il: ['按住拼圖，拖到地圖上。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
-        empty: '全部放好了', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
+        empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
         ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet',
         il: ['Press and drag a piece onto the map.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
-        empty: 'All pieces placed', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map' },
+        empty: 'All placed! Hover a country to see its name.', doneBtn: 'Done', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map' },
 };
 
 const $ = id => document.getElementById(id);
@@ -465,7 +465,13 @@ function renderTray() {
   document.querySelectorAll('.ghost').forEach(g => g.remove());
   const box = $('pieces'); box.textContent = '';
   const left = state.order.filter(id => !state.placed.includes(id));
-  if (!left.length) { const d = document.createElement('div'); d.className = 'empty-tray'; d.textContent = T[lang].empty; box.appendChild(d); return; }
+  if (!left.length) {
+    const t = T[lang], d = document.createElement('div'); d.className = 'empty-tray';
+    d.innerHTML = `<p style="margin:0 0 12px">${t.empty}</p><div class="row" style="justify-content:center"><button class="primary" id="trayAgain">${t.again}</button><button class="ghostbtn" id="traySwitch">${t.switchLv}</button></div>`;
+    box.appendChild(d);
+    $('trayAgain').onclick = () => newGame(); $('traySwitch').onclick = () => openLevels(false);
+    return;
+  }
   for (const id of left) {
     const el = document.createElement('div'); el.className = 'piece'; el.dataset.id = id; el.tabIndex = 0;
     el.appendChild(pieceSVG(id));
@@ -543,7 +549,8 @@ function onPieceUp(e) {
   const c = byId[d.id];
   const [mx, my] = clientToMap(gx, gy);
   const distPx = Math.hypot(mx - c.bbox[0], my - c.bbox[1]) * mapScale();
-  const tol = Math.max(30, Math.min(48, Math.min(c.bbox[2], c.bbox[3]) * mapScale() * .35));
+  const sw = c.bbox[2] * mapScale(), sh = c.bbox[3] * mapScale();
+  const tol = Math.min(sw, sh) < 40 ? 60 : Math.max(34, Math.min(52, Math.min(sw, sh) * .35));
   if (distPx <= tol) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
 }
 function bounceBack(g, el) {
@@ -605,7 +612,8 @@ function renderResult(stars, missed, bt, bs) {
       <div><span class="k">${t.resScore}</span><span class="v">${state.score}/${max}</span>${bs ? `<span class="best">${t.newBest}</span>` : ''}</div>
       <div><span class="k">${t.resStars}</span><span class="v">${stars} / 3</span></div></div>
     ${missed.length ? `<p>${t.review}</p><div class="chips">${missed.map(id => `<span>${nm(id)}</span>`).join('')}</div>` : `<p>${t.perfect}</p>`}
-    <div class="row"><button class="primary" id="btnAgain">${t.again}</button><button class="ghostbtn" id="btnSwitch">${t.switchLv}</button></div>`;
+    <div class="row"><button class="primary" id="btnDone">${t.doneBtn}</button><button class="ghostbtn" id="btnAgain">${t.again}</button><button class="ghostbtn" id="btnSwitch">${t.switchLv}</button></div>`;
+  $('btnDone').onclick = () => { $('result').hidden = true; $('card').hidden = true; fitView(); };
   $('btnAgain').onclick = () => { $('result').hidden = true; newGame(); };
   $('btnSwitch').onclick = () => { $('result').hidden = true; openLevels(false); };
 }
