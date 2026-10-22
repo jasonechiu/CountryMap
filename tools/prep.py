@@ -1,4 +1,4 @@
-"""Build Southeast Asia puzzle data: projected country paths, rivers, terrain image."""
+"""Build regional puzzle data (usage: prep.py OUTDIR [sea|sa]): projected country paths, rivers, terrain image."""
 import json, math, base64, io, sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -8,10 +8,24 @@ from scipy import ndimage
 
 GEO = '/root/geo/'
 OUT = sys.argv[1]
+REGION = sys.argv[2] if len(sys.argv) > 2 else 'sea'
 
-LON0, LON1, LAT0, LAT1 = 88.0, 146.0, -13.0, 29.0
+REGIONS = {
+    # Southeast Asia: 11 countries
+    'sea': dict(box=(88.0, 146.0, -13.0, 29.0), clat=10,
+                targets=['704', '418', '116', '764', '104', '458', '702', '360', '608', '096', '626'],
+                ctx={'156': 'CN', '356': 'IN', '158': 'TW', '598': 'PG', '036': 'AU', '050': 'BD'}),
+    # South Asia: 7 countries
+    'sa': dict(box=(59.0, 99.0, -2.0, 38.0), clat=18,
+               targets=['356', '586', '050', '524', '064', '144', '462'],
+               ctx={'156': 'CN', '004': 'AF', '364': 'IR', '104': 'MM', '762': 'TJ'}),
+}
+CFG = REGIONS[REGION]
+CORE = CFG['box']              # the area the game opens on
+PAD_LON, PAD_LAT = 14.0, 5.0   # extra terrain around it, so wide or tall screens never show a cut edge
+LON0, LON1, LAT0, LAT1 = CORE[0] - PAD_LON, CORE[1] + PAD_LON, CORE[2] - PAD_LAT, CORE[3] + PAD_LAT
 K = 20.0                      # map units per degree latitude
-C = math.cos(math.radians(10))
+C = math.cos(math.radians(CFG['clat']))
 W = (LON1 - LON0) * K * C
 H = (LAT1 - LAT0) * K
 S = 2                         # terrain pixels per map unit
@@ -19,9 +33,9 @@ S = 2                         # terrain pixels per map unit
 def proj(lon, lat, z=None):
     return ((np.asarray(lon) - LON0) * K * C, (LAT1 - np.asarray(lat)) * K)
 
-TARGET = ['704', '418', '116', '764', '104', '458', '702', '360', '608', '096', '626']
-CONTEXT_LABEL = {'156': 'CN', '356': 'IN', '158': 'TW', '598': 'PG', '036': 'AU', '050': 'BD'}
-
+TARGET = CFG['targets']
+CONTEXT_LABEL = CFG['ctx']
+TINY = {'702', '462'}         # keep every islet of these countries
 def path_of(geom, prec=1):
     def ring(coords):
         pts = [f"{x:.{prec}f} {y:.{prec}f}" for x, y in coords[:-1]]
@@ -41,6 +55,8 @@ out_c = []
 land_polys = []
 for f in countries:
     g = shape(f['geometry'])
+    if not g.is_valid:
+        g = g.buffer(0)
     if not g.intersects(bbox_geo):
         continue
     g = g.intersection(bbox_geo)
@@ -48,12 +64,15 @@ for f in countries:
     f['id'] = f.get('id') or f['properties']['name']
     is_t = f['id'] in TARGET
     tol = 0.12 if is_t else 0.35
-    gp = gp.simplify(tol, preserve_topology=True)
+    if f['id'] == '462':
+        gp = gp.buffer(0.9).simplify(0.2)   # atolls are too small to see or grab at true size
+    else:
+        gp = gp.simplify(tol, preserve_topology=True)
     if not is_t:
         gp = gp.intersection(view.buffer(4))
     polys = [p for p in (gp.geoms if hasattr(gp, 'geoms') else [gp]) if isinstance(p, Polygon)]
     min_area = 0.15 if is_t else 1.5
-    polys = [p for p in polys if p.area >= min_area or (is_t and p.area >= 0.02 and f['id'] in ('702',))]
+    polys = [p for p in polys if p.area >= min_area or (is_t and f['id'] in TINY)]
     if not polys:
         continue
     gp = MultiPolygon(polys)
@@ -131,7 +150,7 @@ gray = out.mean(axis=2, keepdims=True)
 out = np.clip(gray + (out - gray) * 1.18, 0, 255)
 out[~mask_d] = [120, 190, 200]
 terr_img = Image.fromarray(out.astype(np.uint8))
-terr_img.save(OUT + '/terrain_preview.png')
+terr_img.save(OUT + f'/terrain_preview_{REGION}.png')
 buf = io.BytesIO()
 terr_img.save(buf, 'JPEG', quality=84, optimize=True, progressive=True)
 terr_b64 = base64.b64encode(buf.getvalue()).decode()
@@ -155,10 +174,12 @@ for i in range(6):
     cc = np.clip(cc.mean() + (cc - cc.mean()) * 1.18, 0, 255)
     legend.append('#%02x%02x%02x' % tuple(int(v) for v in cc))
 
+vx0, vy0 = proj(CORE[0], CORE[3]); vx1, vy1 = proj(CORE[1], CORE[2])
 data = {'W': round(W, 1), 'H': round(H, 1), 'S': S, 'countries': out_c,
+        'view': [round(float(vx0), 1), round(float(vy0), 1), round(float(vx1 - vx0), 1), round(float(vy1 - vy0), 1)],
         'riversMajor': ''.join(riv_major), 'riversMinor': ''.join(riv_minor), 'legend': legend}
-json.dump(data, open(OUT + '/mapdata.json', 'w'))
-open(OUT + '/terrain.b64', 'w').write(terr_b64)
+json.dump(data, open(OUT + f'/mapdata_{REGION}.json', 'w'))
+open(OUT + f'/terrain_{REGION}.b64', 'w').write(terr_b64)
 print('W,H', W, H, 'terrain', TW, TH, 'jpeg KB', len(buf.getvalue()) // 1024,
       'paths KB', sum(len(c['d']) for c in out_c) // 1024, 'rivers KB', (len(data['riversMajor']) + len(data['riversMinor'])) // 1024)
 print('targets', [(c['id'], c['name'], c['bbox']) for c in out_c if c['target']])
