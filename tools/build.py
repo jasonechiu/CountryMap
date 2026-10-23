@@ -11,8 +11,13 @@ REGIONS = ['cont', 'world', 'ea', 'sea', 'sa', 'ca', 'wa', 'ne', 'we', 'se', 'ee
 t = open(os.path.join(SP, 'template.html'), encoding='utf-8').read()
 os.makedirs(os.path.join(OUT, 'data'), exist_ok=True)
 meta = {}
+region_of = {}
 for r in REGIONS:
     m = json.load(open(os.path.join(DATA, f'{r}.json')))
+    if r not in ('cont', 'world'):
+        for c in m['countries']:
+            if c['target']:
+                region_of[c['id']] = r
     meta[r] = {'n': m.get('pickN') or (sum(1 for c in m['countries'] if c['target']) + len(m.get('oceans', [])))}
     for ext in ('json', 'jpg'):
         shutil.copyfile(os.path.join(DATA, f'{r}.{ext}'), os.path.join(OUT, 'data', f'{r}.{ext}'))
@@ -21,7 +26,7 @@ os.makedirs(os.path.join(OUT, 'data', 'flags'), exist_ok=True)
 for c in codes:
     shutil.copyfile(FLAG_DIR + c + '.svg', os.path.join(OUT, 'data', 'flags', c + '.svg'))
 flags = {c: f'data/flags/{c}.svg' for c in codes}
-t = t.replace('__LEVEL_META__', json.dumps(meta)).replace('__FLAGS__', json.dumps(flags))
+t = t.replace('__LEVEL_META__', json.dumps(meta)).replace('__REGION_OF__', json.dumps(region_of)).replace('__FLAGS__', json.dumps(flags))
 open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(t)
 total = sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(os.path.join(OUT, 'data')) for f in fs)
 print('index.html', len(t.encode()) // 1024, 'KB; data', total // 1024, 'KB;', len(codes), 'flags;', meta)

@@ -130,7 +130,12 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .piece svg { width: 100%; height: 78px; display: block; overflow: visible; }
 .piece .nm { font-size: 14px; font-weight: 700; line-height: 1.1; text-align: center; }
 .piece .nm small { display: block; font-weight: 400; font-size: 11px; color: var(--ink-soft); }
-.piece .miss { position: absolute; top: 5px; right: 6px; font-size: 11px; color: var(--bad); font-weight: 700; font-family: var(--font-data); }
+.piece .hintbtn { position: absolute; top: 5px; right: 5px; height: 22px; min-width: 22px; padding: 0 6px; border-radius: 11px;
+  border: 1px solid var(--rule); background: var(--sheet); color: var(--ink-soft); font-size: 12px; font-weight: 700; line-height: 20px; cursor: pointer; }
+.piece .hintbtn:hover { border-color: var(--sienna); color: var(--sienna); }
+.piece .hintbtn.open { background: var(--sienna); border-color: var(--sienna); color: #fff; font-weight: 600; font-size: 11.5px; max-width: calc(100% - 12px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.piece .miss { position: absolute; top: 5px; left: 6px; font-size: 11px; color: var(--bad); font-weight: 700; font-family: var(--font-data); }
 .piece-shape { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.35)); }
 .empty-tray { grid-column: 1 / -1; color: var(--ink-soft); font-size: 13px; text-align: center; padding: 24px 8px; }
 
@@ -261,6 +266,7 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 <div class="tip" id="tip" hidden></div>
 
 <script>
+const REGION_OF = __REGION_OF__;     // country id -> its region, for the World Challenge hint
 const LEVEL_META = __LEVEL_META__;   // per region: { n: pieces }; the map itself is fetched from data/<id>.json when chosen
 const FLAGS = __FLAGS__;
 const CONTINENTS = { special: { zh: '特別關卡', en: 'Special' }, asia: { zh: '亞洲', en: 'Asia' }, europe: { zh: '歐洲', en: 'Europe' }, africa: { zh: '非洲', en: 'Africa' }, americas: { zh: '美洲', en: 'Americas' }, oceania: { zh: '大洋洲', en: 'Oceania' } };
@@ -584,14 +590,14 @@ const T = {
         il: ['按住拼圖，拖到地圖上。七大洲三大洋關裡，海洋是名牌，拖到正確的海洋上就好。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
-        empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖' },
+        empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖', hint: '提示：這個國家在哪一區', hintIs: r => `在${r}` },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
         ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
         il: ['Press and drag a piece onto the map. In Continents & Oceans, drop each ocean name tag onto its ocean.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
-        empty: 'All placed! Hover a country to see its name.', doneBtn: 'Done', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map' },
+        empty: 'All placed! Hover a country to see its name.', doneBtn: 'Done', sound: 'Sound', lang: '中', zin: 'Zoom in', zout: 'Zoom out', fit: 'Fit map', hint: 'Hint: which region is it in?', hintIs: r => `In ${r}` },
 };
 
 const $ = id => document.getElementById(id);
@@ -819,7 +825,7 @@ function newGame() {
   if (MAP.pickN) { chooseTargets(); buildLayers(); }
   const prevMiss = store.get(level + '-mistakes', []).filter(id => TARGETS.includes(id));
   const rest = TARGETS.filter(id => !prevMiss.includes(id)).sort(() => Math.random() - .5);
-  state = { order: [...prevMiss.sort(() => Math.random() - .5), ...rest], placed: [], tries: {}, score: 0, started: false, t0: 0, elapsed: 0, finished: false };
+  state = { order: [...prevMiss.sort(() => Math.random() - .5), ...rest], placed: [], tries: {}, score: 0, started: false, t0: 0, elapsed: 0, finished: false, hinted: new Set() };
   TARGETS.forEach(id => state.tries[id] = 0);
   $('landClip').querySelectorAll('[data-placed]').forEach(n => n.remove());
   $('gLines').querySelectorAll('[data-placed]').forEach(n => n.remove());
@@ -877,11 +883,25 @@ function renderTray() {
     nm.innerHTML = lang === 'zh' ? `${i.zh}<small>${i.en}</small>` : `${i.en}<small>${i.zh}</small>`;
     el.appendChild(nm);
     if (state.tries[id]) { const m = document.createElement('span'); m.className = 'miss'; m.textContent = '×' + state.tries[id]; el.appendChild(m); }
+    if (MAP.pickN && REGION_OF[id]) el.appendChild(hintButton(id));
     el.addEventListener('pointerdown', onPieceDown);
     box.appendChild(el);
   }
 }
 
+// World Challenge hint: the button shows which region the country is in (e.g. East Africa)
+function hintButton(id) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'hintbtn';
+  const show = () => {
+    const r = LV[REGION_OF[id]][lang].region;
+    b.classList.add('open'); b.textContent = r; b.title = r; b.setAttribute('aria-label', T[lang].hintIs(r));
+  };
+  if (state.hinted.has(id)) show();
+  else { b.textContent = '?'; b.title = T[lang].hint; b.setAttribute('aria-label', T[lang].hint); }
+  b.addEventListener('pointerdown', e => e.stopPropagation());     // pressing the hint never starts a drag
+  b.addEventListener('click', e => { e.stopPropagation(); if (!state.hinted.has(id)) { state.hinted.add(id); show(); } });
+  return b;
+}
 function tileOf(id) { return document.querySelector(`.piece[data-id="${id}"]`); }
 function markMiss(id) {
   const el = tileOf(id); if (!el) return;
