@@ -163,6 +163,12 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .res .v { font-family: var(--font-data); font-size: 20px; font-variant-numeric: tabular-nums; }
 .res .best { font-size: 11px; color: var(--sienna); }
 .levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mode { text-align: left; border: 1px solid var(--rule); background: var(--paper); border-radius: 10px; padding: 10px 12px; display: grid; gap: 2px; }
+.mode b { font-size: 15px; }
+.mode span { font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+.mode[aria-pressed="true"] { border-color: var(--sienna); background: var(--sienna-tint); box-shadow: inset 0 0 0 1px var(--sienna); }
+.advpill { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--sienna); color: #fff; font-size: 11px; font-weight: 700; vertical-align: 2px; }
 .conthead { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
 .conthead b { font-size: 14px; letter-spacing: .08em; }
 .conthead span { font-size: 12px; color: var(--ink-soft); }
@@ -175,6 +181,7 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips span { background: var(--sienna-tint); color: var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
 
+@media (max-width: 520px) { .modes { grid-template-columns: 1fr; } }
 @media (max-width: 860px) {
   body { overflow: auto; }
   .app { height: auto; }
@@ -256,6 +263,10 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
     <h2 id="i-h">選一個區域</h2>
     <p id="i-p">地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。</p>
     <ol id="i-list"></ol>
+    <div class="modes" role="group" aria-label="難度">
+      <button class="mode" id="modeNormal" type="button"><b id="m-n">一般</b><span id="m-n2">拼國家的形狀，地圖上有虛線國界</span></button>
+      <button class="mode" id="modeAdv" type="button"><b id="m-a">進階</b><span id="m-a2">只有國名，沒有國界，拖到國家的位置</span></button>
+    </div>
     <div class="levels" id="levels"></div>
     <div class="row" id="backRow" hidden><button class="ghostbtn" id="btnBack">回到目前這局</button></div>
   </div>
@@ -266,7 +277,8 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 <div class="tip" id="tip" hidden></div>
 
 <script>
-const REGION_OF = __REGION_OF__;     // country id -> its region, for the World Challenge hint
+const REGION_OF = __REGION_OF__;
+let advanced = false, pendingAdv = false;   // advanced: the game in play; pendingAdv: what the region picker is set to     // country id -> its region, for the World Challenge hint
 const LEVEL_META = __LEVEL_META__;   // per region: { n: pieces }; the map itself is fetched from data/<id>.json when chosen
 const FLAGS = __FLAGS__;
 const CONTINENTS = { special: { zh: '特別關卡', en: 'Special' }, asia: { zh: '亞洲', en: 'Asia' }, europe: { zh: '歐洲', en: 'Europe' }, africa: { zh: '非洲', en: 'Africa' }, americas: { zh: '美洲', en: 'Americas' }, oceania: { zh: '大洋洲', en: 'Oceania' } };
@@ -586,14 +598,14 @@ const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', '
 const T = {
   zh: { sub: n => `${n} 個國家`, done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
         trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
-        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
+        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', modeN: '一般', modeN2: '拼國家的形狀，地圖上有虛線國界', modeA: '進階', modeA2: '只有國名，沒有國界，拖到國家的位置', advTag: '進階', trayhintAdv: '把國名拖到地圖上那個國家的位置', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
         il: ['按住拼圖，拖到地圖上。七大洲三大洋關裡，海洋是名牌，拖到正確的海洋上就好。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
         empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖', hint: '提示：這個國家在哪一區', hintIs: r => `在${r}` },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
-        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
+        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', modeN: 'Standard', modeN2: 'Fit the country shapes onto dashed borders', modeA: 'Advanced', modeA2: 'Names only, no borders: drop each name on its country', advTag: 'Advanced', trayhintAdv: 'Drop each name where that country is', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
         il: ['Press and drag a piece onto the map. In Continents & Oceans, drop each ocean name tag onto its ocean.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
@@ -611,6 +623,9 @@ const store = {
 let lang = store.get('sea-lang', 'zh');
 let soundOn = store.get('sea-sound', true);
 let level = LEVEL_META[store.get('geo-level', 'sea')] ? store.get('geo-level', 'sea') : 'sea';
+advanced = pendingAdv = !!store.get('geo-adv', false);
+const recKey = (id = level, adv = advanced) => id + (adv ? '-adv' : '');   // best times and missed countries are kept per mode
+const isTag = id => !!(byId[id] && (byId[id].ocean || advanced));
 let MAP, W, H, byId, TARGETS, vb = [0, 0, 1, 1], lastZ = 1, relabelRaf = 0;
 
 /* ---------- build the map for a region ---------- */
@@ -649,9 +664,11 @@ function buildLayers() {
   defs.querySelectorAll('[data-dyn]').forEach(n => n.remove());
   $('landClip').textContent = ''; $('gVeil').textContent = ''; $('gLines').textContent = '';
   for (const c of MAP.countries) {
-    mk('path', { id: 'c-' + c.id, d: c.d, 'data-dyn': 1 }, defs);
-    if (c.target) { const cp = mk('clipPath', { id: 'pc-' + c.id, 'data-dyn': 1 }, defs); mk('use', { href: '#c-' + c.id }, cp); }
-    else {
+    mk('path', { id: 'c-' + c.id, d: c.d, 'data-dyn': 1, 'fill-rule': 'evenodd' }, defs);
+    if (c.target) {
+      const cp = mk('clipPath', { id: 'pc-' + c.id, 'data-dyn': 1 }, defs); mk('use', { href: '#c-' + c.id }, cp);
+      if (advanced) mk('use', { href: '#c-' + c.id }, $('landClip'));   // terrain shows, borders do not
+    } else {
       mk('use', { href: '#c-' + c.id }, $('landClip'));
       mk('use', { href: '#c-' + c.id, class: 'ctxveil' }, $('gVeil'));
       mk('use', { href: '#c-' + c.id, class: 'ctxline' }, $('gLines'));
@@ -661,7 +678,7 @@ function buildLayers() {
 // 世界大挑戰: draw this game's countries from the pool, countries missed last time first
 function chooseTargets() {
   const pool = MAP.countries.filter(c => c.pool && INFO[c.id]).map(c => c.id);
-  const missed = store.get(level + '-mistakes', []).filter(id => pool.includes(id)).sort(() => Math.random() - .5).slice(0, 6);
+  const missed = store.get(recKey() + '-mistakes', []).filter(id => pool.includes(id)).sort(() => Math.random() - .5).slice(0, 6);
   const rest = pool.filter(id => !missed.includes(id)).sort(() => Math.random() - .5);
   const pick = new Set([...missed, ...rest].slice(0, MAP.pickN));
   MAP.countries.forEach(c => c.target = pick.has(c.id));
@@ -823,15 +840,16 @@ $('btnSound').onclick = () => { soundOn = !soundOn; store.set('sea-sound', sound
 let state;
 function newGame() {
   if (MAP.pickN) { chooseTargets(); buildLayers(); }
-  const prevMiss = store.get(level + '-mistakes', []).filter(id => TARGETS.includes(id));
+  const prevMiss = store.get(recKey() + '-mistakes', []).filter(id => TARGETS.includes(id));
   const rest = TARGETS.filter(id => !prevMiss.includes(id)).sort(() => Math.random() - .5);
   state = { order: [...prevMiss.sort(() => Math.random() - .5), ...rest], placed: [], tries: {}, score: 0, started: false, t0: 0, elapsed: 0, finished: false, hinted: new Set() };
   TARGETS.forEach(id => state.tries[id] = 0);
+  if (!MAP.pickN) buildLayers();   // the mode may have changed since the map was drawn
   $('landClip').querySelectorAll('[data-placed]').forEach(n => n.remove());
   $('gLines').querySelectorAll('[data-placed]').forEach(n => n.remove());
   $('gHits').textContent = '';
   const gs = $('gSlots'); gs.textContent = '';
-  for (const id of TARGETS) if (!byId[id].ocean) mk('use', { href: '#c-' + id, class: 'slot', id: 'slot-' + id }, gs);
+  if (!advanced) for (const id of TARGETS) if (!byId[id].ocean) mk('use', { href: '#c-' + id, class: 'slot', id: 'slot-' + id }, gs);
   $('card').hidden = true; fitView();
   renderTray(); drawLabels(); renderStats();
 }
@@ -846,15 +864,26 @@ function renderStats() {
 }
 
 /* ---------- tray ---------- */
+function tagText(id) { return lang === 'zh' ? INFO[id].zh : (byId[id].ocean ? INFO[id].en.replace(' Ocean', '') : INFO[id].en); }
+// a tag's size in px; long names get a wider tag, very long ones a smaller font
+function tagBox(id) {
+  const txt = tagText(id), em = [...txt].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? 1 : .58), 0);
+  const fs = em > 11 ? 13 : em > 8 ? 15 : 17;
+  return { w: Math.max(84, Math.round(em * fs * (lang === 'zh' ? 1.12 : 1) + 28)), h: 40, fs };
+}
 function tagSVG(id) {
-  const s = mk('svg', { viewBox: '0 0 120 40', preserveAspectRatio: 'xMidYMid meet' });
-  mk('rect', { x: 1, y: 1, width: 118, height: 38, rx: 19, fill: '#2f7f8c', stroke: '#fff', 'stroke-width': 2 }, s);
-  const t = mk('text', { x: 60, y: 26, 'text-anchor': 'middle', 'font-size': 17, 'font-weight': 700, fill: '#fff', 'font-family': 'var(--font-display)', 'letter-spacing': '.15em' }, s);
-  t.textContent = lang === 'zh' ? INFO[id].zh : INFO[id].en.replace(' Ocean', '');
+  const { w, h, fs } = tagBox(id);
+  const s = mk('svg', { viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: 'xMidYMid meet' });
+  mk('rect', { x: 1, y: 1, width: w - 2, height: h - 2, rx: 19, fill: byId[id].ocean ? '#2f7f8c' : '#8a4f1d', stroke: '#fff', 'stroke-width': 2 }, s);
+  const t = mk('text', { x: w / 2, y: 20 + fs * .36, 'text-anchor': 'middle', 'font-size': fs, 'font-weight': 700, fill: '#fff', 'font-family': 'var(--font-display)',
+    'letter-spacing': lang === 'zh' ? '.12em' : '.02em' }, s);
+  t.textContent = tagText(id);
   return s;
 }
+// the box a piece is drawn in: a name tag (px), or the country's shape (map units)
+function pieceBox(id) { if (isTag(id)) { const b = tagBox(id); return [0, 0, b.w, b.h]; } return byId[id].bbox; }
 function pieceSVG(id, pad) {
-  if (byId[id].ocean) return tagSVG(id);
+  if (isTag(id)) return tagSVG(id);
   const c = byId[id]; const [x, y, w, h] = c.bbox; const p = pad != null ? pad : Math.max(w, h) * .04;
   const minSpan = pad != null ? 0 : 46; const ex = Math.max(0, (minSpan - w - 2 * p) / 2), ey = Math.max(0, (minSpan * .75 - h - 2 * p) / 2);
   const s = mk('svg', { viewBox: `${x - p - ex} ${y - p - ey} ${w + 2 * p + 2 * ex} ${h + 2 * p + 2 * ey}`, preserveAspectRatio: 'xMidYMid meet' });
@@ -880,7 +909,7 @@ function renderTray() {
     el.appendChild(pieceSVG(id));
     const nm = document.createElement('div'); nm.className = 'nm';
     const i = INFO[id];
-    nm.innerHTML = lang === 'zh' ? `${i.zh}<small>${i.en}</small>` : `${i.en}<small>${i.zh}</small>`;
+    nm.innerHTML = isTag(id) ? `<small>${lang === 'zh' ? i.en : i.zh}</small>` : lang === 'zh' ? `${i.zh}<small>${i.en}</small>` : `${i.en}<small>${i.zh}</small>`;
     el.appendChild(nm);
     if (state.tries[id]) { const m = document.createElement('span'); m.className = 'miss'; m.textContent = '×' + state.tries[id]; el.appendChild(m); }
     if (MAP.pickN && REGION_OF[id]) el.appendChild(hintButton(id));
@@ -918,7 +947,7 @@ let drag = null;
 function onPieceDown(e) {
   if (e.button !== 0 || state.finished) return;
   const el = e.currentTarget; const id = el.dataset.id; const thumb = el.querySelector('svg');
-  const c = byId[id]; const [bx, by, bw, bh] = c.bbox;
+  const [bx, by, bw, bh] = pieceBox(id);
   // grab point as a fraction of the piece's bounding box
   const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(thumb.getScreenCTM().inverse());
   const fx = Math.min(1, Math.max(0, (pt.x - bx) / bw)), fy = Math.min(1, Math.max(0, (pt.y - by) / bh));
@@ -929,20 +958,20 @@ function onPieceDown(e) {
   window.addEventListener('blur', onPieceCancel);
 }
 function makeGhost() {
-  const { id, el } = drag; const c = byId[id];
+  const { id, el } = drag; const pbx = pieceBox(id);
   const g = pieceSVG(id, 0); g.classList.add('ghost'); const ps = g.querySelector('.piece-shape'); if (ps) ps.classList.remove('piece-shape');
   document.body.appendChild(g);
   // start at the thumbnail, then grow to true map scale
   const r = el.querySelector('svg').getBoundingClientRect();
-  const k = Math.min(r.width / c.bbox[2], r.height / c.bbox[3]);
-  const tw = c.bbox[2] * k, th = c.bbox[3] * k;
+  const k = Math.min(r.width / pbx[2], r.height / pbx[3]);
+  const tw = pbx[2] * k, th = pbx[3] * k;
   place(g, r.left + (r.width - tw) / 2, r.top + (r.height - th) / 2, tw, th);
   drag.ghost = g; el.classList.add('lifted');
   g.getBoundingClientRect(); g.classList.add('anim');
   startClock();
 }
 function place(g, x, y, w, h) { g.style.transform = `translate(${x}px, ${y}px)`; g.style.width = w + 'px'; g.style.height = h + 'px'; g._pos = [x, y, w, h]; }
-function ghostTarget(d, px, py) { const c = byId[d.id]; const s = c.ocean ? 1 : mapScale(); const w = c.bbox[2] * s, h = c.bbox[3] * s; return [px - d.fx * w, py - d.fy * h, w, h]; }
+function ghostTarget(d, px, py) { const b = pieceBox(d.id); const s = isTag(d.id) ? 1 : mapScale(); const w = b[2] * s, h = b[3] * s; return [px - d.fx * w, py - d.fy * h, w, h]; }
 function onPieceMove(e) {
   if (!drag) return;
   if (e.buttons === 0) { onPieceUp(e); return; }   // released outside the page
@@ -964,7 +993,11 @@ function onPieceUp(e) {
   if (!overMap) { bounceBack(d.ghost, d.el); return; }
   const [gx, gy] = ghostTarget(d, e.clientX, e.clientY);
   const c = byId[d.id];
-  if (c.ocean) { oceanAt(...clientToMap(gx + 60, gy + 20)) === c.code ? correct(d.id, d.ghost) : wrong(d.id, d.ghost, d.el); return; }
+  if (isTag(d.id)) {
+    const b = pieceBox(d.id), [mx, my] = clientToMap(gx + b[2] / 2, gy + b[3] / 2);
+    const ok = c.ocean ? oceanAt(mx, my) === c.code : onCountry(d.id, mx, my);
+    ok ? correct(d.id, d.ghost) : wrong(d.id, d.ghost, d.el); return;
+  }
   const [mx, my] = clientToMap(gx, gy);
   const distPx = Math.hypot(mx - c.bbox[0], my - c.bbox[1]) * mapScale();
   const sw = c.bbox[2] * mapScale(), sh = c.bbox[3] * mapScale();
@@ -979,6 +1012,18 @@ function onPieceUp(e) {
   }
   if (distPx <= tol || inside) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
 }
+function onCountry(id, mx, my) {
+  const el = $('c-' + id), s = mapScale(), c = byId[id];
+  const hit = (x, y) => { try { return el.isPointInFill(new DOMPoint(x, y)); } catch (e) { return false; } };
+  if (hit(mx, my)) return true;
+  const r = 12 / s;                                  // 12 screen px of slack around the coast or border
+  for (let a = 0; a < 8; a++) if (hit(mx + r * Math.cos(a * Math.PI / 4), my + r * Math.sin(a * Math.PI / 4))) return true;
+  if (Math.min(c.bbox[2], c.bbox[3]) * s < 30) {     // tiny countries: anywhere close to them
+    const pad = 22 / s;
+    return mx >= c.bbox[0] - pad && mx <= c.bbox[0] + c.bbox[2] + pad && my >= c.bbox[1] - pad && my <= c.bbox[1] + c.bbox[3] + pad;
+  }
+  return false;
+}
 function oceanAt(mx, my) {
   const g = MAP.oceanGrid; if (!g) return null;
   const c0 = Math.floor(mx / g.step), r0 = Math.floor(my / g.step);
@@ -990,8 +1035,8 @@ function oceanAt(mx, my) {
 }
 function bounceBack(g, el) {
   if (!el.isConnected) { g.style.opacity = 0; setTimeout(() => g.remove(), 200); return; }
-  const r = el.querySelector('svg').getBoundingClientRect(); const c = byId[el.dataset.id];
-  const k = Math.min(r.width / c.bbox[2], r.height / c.bbox[3]); const tw = c.bbox[2] * k, th = c.bbox[3] * k;
+  const r = el.querySelector('svg').getBoundingClientRect(); const pbx = pieceBox(el.dataset.id);
+  const k = Math.min(r.width / pbx[2], r.height / pbx[3]); const tw = pbx[2] * k, th = pbx[3] * k;
   g.classList.add('anim'); place(g, r.left + (r.width - tw) / 2, r.top + (r.height - th) / 2, tw, th); g.style.opacity = .3;
   setTimeout(() => { g.remove(); el.classList.remove('lifted'); }, 240);
 }
@@ -1004,11 +1049,19 @@ function correct(id, g) {
   state.tries[id]++;
   const n = state.tries[id]; const pts = Math.max(0, 4 - n); state.score += pts;
   const c = byId[id]; const ctm = svg.getScreenCTM();
-  if (c.ocean) {
+  if (isTag(id)) {
     sfx('ok'); sayName(INFO[id]);
     g.classList.add('anim'); g.style.opacity = 0;
-    setTimeout(() => { g.remove(); state.placed.push(id); placeLabel(id); removeTile(id); renderStats(); showCard(id, n, pts);
-      if (state.placed.length === TARGETS.length) finish(); }, 230);
+    setTimeout(() => {
+      g.remove(); state.placed.push(id);
+      if (!c.ocean) {
+        mk('use', { href: '#c-' + id, class: 'placedline', 'data-placed': id }, $('gLines'));
+        const fl = mk('use', { href: '#c-' + id, class: 'flash', 'data-placed': id }, $('gLines')); setTimeout(() => fl.remove(), 1200);
+        const hit = mk('use', { href: '#c-' + id, class: 'hit' }, $('gHits')); hit.dataset.id = id;
+      }
+      placeLabel(id); removeTile(id); renderStats(); showCard(id, n, pts);
+      if (state.placed.length === TARGETS.length) finish();
+    }, 230);
     return;
   }
   const p = new DOMPoint(c.bbox[0], c.bbox[1]).matrixTransform(ctm);
@@ -1039,11 +1092,11 @@ function showCard(id, n, pts) {
 function finish() {
   state.finished = true; state.elapsed = performance.now() - state.t0; $('vTime').textContent = fmt(state.elapsed);
   const missed = TARGETS.filter(id => state.tries[id] > 1);
-  store.set(level + '-mistakes', missed);
+  store.set(recKey() + '-mistakes', missed);
   const max = TARGETS.length * 3; const stars = state.score >= max - 2 ? 3 : state.score >= max * .7 ? 2 : 1;
-  const best = store.get(level + '-best', null);
+  const best = store.get(recKey() + '-best', null);
   const isBestTime = !best || state.elapsed < best.time; const isBestScore = !best || state.score > best.score;
-  store.set(level + '-best', { time: Math.min(state.elapsed, best ? best.time : Infinity), score: Math.max(state.score, best ? best.score : 0) });
+  store.set(recKey() + '-best', { time: Math.min(state.elapsed, best ? best.time : Infinity), score: Math.max(state.score, best ? best.score : 0) });
   setTimeout(() => { sfx('win'); renderResult(stars, missed, isBestTime, isBestScore); $('result').hidden = false; $('result').querySelector('.primary').focus(); }, 1400);
 }
 function renderResult(stars, missed, bt, bs) {
@@ -1064,8 +1117,9 @@ function renderResult(stars, missed, bt, bs) {
 /* ---------- language ---------- */
 function applyLang() {
   const t = T[lang]; document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en';
-  $('t-title').textContent = LV[level][lang].title; $('t-sub').textContent = LV[level][lang].sub || t.sub(LEVEL_META[level].n); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
-  $('t-restart').textContent = t.restart; $('t-tray').textContent = t.tray; $('t-trayhint').textContent = t.trayhint;
+  $('t-title').textContent = LV[level][lang].title; $('t-sub').innerHTML = (LV[level][lang].sub || t.sub(LEVEL_META[level].n)) + (advanced ? `<span class="advpill">${t.advTag}</span>` : '');
+  $('m-n').textContent = t.modeN; $('m-n2').textContent = t.modeN2; $('m-a').textContent = t.modeA; $('m-a2').textContent = t.modeA2; renderModes(); $('t-levels').textContent = t.levels; $('btnBack').textContent = t.back; $('t-done').textContent = t.done; $('t-time').textContent = t.time; $('t-score').textContent = t.score;
+  $('t-restart').textContent = t.restart; $('t-tray').textContent = t.tray; $('t-trayhint').textContent = advanced ? t.trayhintAdv : t.trayhint;
   $('t-elev').textContent = t.elev; $('t-elev2').textContent = t.elev2;
   $('ticks').innerHTML = t.ticks.map(s => `<span>${s}</span>`).join('');
   $('btnLang').textContent = t.lang;
@@ -1078,12 +1132,12 @@ function renderLevels() {
   const t = T[lang], box = $('levels'); box.textContent = '';
   for (const cid of Object.keys(CONTINENTS)) {
     const ids = Object.keys(LV).filter(id => LV[id].cont === cid && LEVEL_META[id]);
-    const done = ids.filter(id => store.get(id + '-best', null)).length;
+    const done = ids.filter(id => store.get(recKey(id, pendingAdv) + '-best', null)).length;
     const head = document.createElement('div'); head.className = 'conthead';
     head.innerHTML = `<b>${CONTINENTS[cid][lang]}</b><span>${t.contDone(done, ids.length)}</span>`;
     box.appendChild(head);
     for (const id of ids) {
-      const n = LEVEL_META[id].n, best = store.get(id + '-best', null);
+      const n = LEVEL_META[id].n, best = store.get(recKey(id, pendingAdv) + '-best', null);
       const b = document.createElement('button'); b.className = 'lvl' + (id === level ? ' cur' : ''); b.id = 'lvl-' + id;
       b.innerHTML = `<b>${LV[id][lang].region}</b><span>${LV[id][lang].sub || t.sub(n)}</span><em>${best ? `${t.best} ${fmt(best.time)} · ${best.score}/${n * 3}` : t.notYet}</em>`;
       b.onclick = () => startLevel(id);
@@ -1091,8 +1145,14 @@ function renderLevels() {
     }
   }
 }
+function renderModes() {
+  $('modeNormal').setAttribute('aria-pressed', String(!pendingAdv)); $('modeAdv').setAttribute('aria-pressed', String(pendingAdv));
+}
+$('modeNormal').onclick = () => { pendingAdv = false; renderModes(); renderLevels(); };
+$('modeAdv').onclick = () => { pendingAdv = true; renderModes(); renderLevels(); };
 function openLevels(fromGame) {
   if (drag) onPieceCancel();
+  pendingAdv = advanced; renderModes();
   $('backRow').hidden = !fromGame; renderLevels(); $('intro').hidden = false;
 }
 let loading = false;
@@ -1100,6 +1160,7 @@ async function startLevel(id) {
   if (loading) return; loading = true;
   const b = $('lvl-' + id), em = b && b.querySelector('em'); if (em) em.textContent = T[lang].loadingMap;
   try {
+    advanced = pendingAdv; store.set('geo-adv', advanced);
     await loadLevel(id); newGame(); applyLang();
     $('intro').hidden = true; sfx('ok');
   } catch (e) {
