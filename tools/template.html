@@ -1018,7 +1018,7 @@ function onPieceMove(e) {
   if (e.buttons === 0) { onPieceUp(e); return; }   // released outside the page
   if (!drag.ghost) { if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return; makeGhost(); }
   place(drag.ghost, ...ghostTarget(drag, e.clientX, e.clientY));
-  if (isTag(drag.id) && !byId[drag.id].ocean) { const x = e.clientX, y = e.clientY; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(() => setHover(x, y)); }
+  if (isTag(drag.id) && !byId[drag.id].ocean) { const x = e.clientX, y = e.clientY; cancelAnimationFrame(hoverRaf); hoverRaf = requestAnimationFrame(() => setHover(...tagPoints(drag, x, y))); }
   setTimeout(() => drag && drag.ghost && drag.ghost.classList.remove('anim'), 230);
 }
 let hoverRaf = 0, hoverId = null;
@@ -1048,8 +1048,12 @@ function countryUnder(px, py) {
   if (tight && (!exact || area(exact) >= 20 * area(tight))) return tight;
   return exact || near;
 }
-function setHover(px, py) {
-  const id = px == null ? null : countryUnder(px, py);
+// a name tag points at two spots: the middle of its name, and the tip of its pin (just below)
+function tagPoints(d, px, py) { const [gx, gy, w] = ghostTarget(d, px, py); return [gx + w / 2, gy + 20, px, py]; }
+// the country under the name wins; if the name is over sea or empty land, the pin's tip decides
+function countryUnderTag(cx, cy, tx, ty) { return countryUnder(cx, cy) || countryUnder(tx, ty); }
+function setHover(px, py, tx, ty) {
+  const id = px == null ? null : (tx == null ? countryUnder(px, py) : countryUnderTag(px, py, tx, ty));
   if (id === hoverId) return;
   if (hoverId) { const o = $('slot-' + hoverId); if (o) o.classList.remove('hover'); document.querySelectorAll(`.isle[data-id="${hoverId}"]`).forEach(r => r.classList.remove('hover')); }
   hoverId = id;
@@ -1073,7 +1077,9 @@ function onPieceUp(e) {
   if (isTag(d.id)) {
     const b = pieceBox(d.id);
     const ok = c.ocean ? oceanAt(...clientToMap(gx + b[2] / 2, gy + b[3] / 2)) === c.code
-                       : countryUnder(e.clientX, e.clientY) === d.id || onCountry(d.id, ...clientToMap(e.clientX, e.clientY));
+                       : (() => { const [cx, cy, tx, ty] = tagPoints(d, e.clientX, e.clientY);
+                                  // right if either the name or the pin's tip is on the country
+                                  return countryUnderTag(cx, cy, tx, ty) === d.id || [[cx, cy], [tx, ty]].some(([x, y]) => countryUnder(x, y) === d.id || onCountry(d.id, ...clientToMap(x, y))); })();
     ok ? correct(d.id, d.ghost) : wrong(d.id, d.ghost, d.el); return;
   }
   const [mx, my] = clientToMap(gx, gy);
