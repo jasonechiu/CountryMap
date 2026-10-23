@@ -75,6 +75,12 @@ button:focus-visible, .piece:focus-visible { outline: 2px solid var(--sienna); o
 .isle { fill: none; stroke: var(--sienna); stroke-width: 1.6; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 .slot.hover { fill: rgba(255, 170, 60, .55); stroke: #fff; stroke-width: 2.6; stroke-dasharray: none; }
 .isle.hover { stroke-width: 3; stroke-dasharray: none; }
+.zone .ring { fill: rgba(255,255,255,.82); stroke: var(--sienna); stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.zone .dot { fill: var(--sienna); }
+.zone .leader { stroke: var(--sienna); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.zone.hover .ring { fill: #ffb24a; stroke: #fff; stroke-width: 3; stroke-dasharray: none; }
+.zone.hover .dot { fill: #fff; }
+.zone { pointer-events: none; }
 .isle.done { stroke-dasharray: none; stroke-width: 1; opacity: .55; }
 .ctxveil { fill: var(--veil); }
 .ctxline { fill: none; stroke: rgba(30,50,50,.35); stroke-width: .6; vector-effect: non-scaling-stroke; }
@@ -603,14 +609,14 @@ const CTX = { CN: ['中國', 'China'], IN: ['印度', 'India'], TW: ['台灣', '
 const T = {
   zh: { sub: n => `${n} 個國家`, done: '完成', time: '時間', score: '分數', restart: '重新開始', tray: '拼圖區',
         trayhint: '按住拖到地圖上的虛線位置', elev: '海拔', elev2: '低 → 高', ticks: ['平原', '丘陵', '山地', '高山'],
-        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', modeN: '一般', modeN2: '拼國家的形狀，地圖上有虛線國界', modeA: '進階', modeA2: '拼圖只有國名，要拖到地圖上正確的虛線國界裡', advTag: '進階', trayhintAdv: '把國名拖到地圖上那個國家的虛線國界裡', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
+        ih: '選一個區域', ip: '地圖上的虛線是每個國家的國界輪廓，把右邊的拼圖拖到正確位置。', levels: '換區域', back: '回到目前這局', notYet: '還沒玩過', modeN: '一般', modeN2: '拼國家的形狀，地圖上有虛線國界', modeA: '進階', modeA2: '拼圖只有國名，拖到地圖上正確國家的圓圈裡', advTag: '進階', trayhintAdv: '把國名拖到那個國家的圓圈上（圓圈是接收區）', loadingMap: '載入地圖中…', loadFail: '地圖載入失敗，請再點一次', contDone: (d, n) => `完成 ${d} / ${n} 區`,
         il: ['按住拼圖，拖到地圖上。七大洲三大洋關裡，海洋是名牌，拖到正確的海洋上就好。', '放對會吸附並跳出國家小卡；放錯會彈回，可以再試。', '第一次就放對得 3 分，第二次 2 分，第三次 1 分。', '滾輪可以放大地圖，小國家比較好放。'],
         start: '開始', best: '最佳紀錄', capital: '首都', firstTry: (n, p) => `第 ${n} 次放對 · +${p} 分`, wrong: '位置不對，再試一次',
         doneH: r => `${r}拼好了！`, switchLv: '換區域', resTime: '用時', resScore: '分數', resStars: '星等', newBest: '新紀錄', again: '再玩一次', review: '這幾國放錯過，下次會先出現：', perfect: '全部第一次就放對，太強了。',
         empty: '全部放好了！滑到國家上可以看國名。', doneBtn: '完成', sound: '音效', lang: 'EN', zin: '放大', zout: '縮小', fit: '全圖', hint: '提示：這個國家在哪一區', hintIs: r => `在${r}` },
   en: { sub: n => `${n} countries`, done: 'Placed', time: 'Time', score: 'Score', restart: 'Restart', tray: 'Pieces',
         trayhint: 'Drag a piece onto its dashed outline', elev: 'Elevation', elev2: 'low → high', ticks: ['Plains', 'Hills', 'Mountains', 'High'],
-        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', modeN: 'Standard', modeN2: 'Fit the country shapes onto dashed borders', modeA: 'Advanced', modeA2: 'Pieces show only the name: drop it inside the right dashed border', advTag: 'Advanced', trayhintAdv: 'Drop each name inside its dashed border', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
+        ih: 'Pick a region', ip: 'The dashed lines on the map are country borders. Drag each piece to the right place.', levels: 'Regions', back: 'Back to my game', notYet: 'Not played yet', modeN: 'Standard', modeN2: 'Fit the country shapes onto dashed borders', modeA: 'Advanced', modeA2: 'Pieces show only the name: drop it on the right country\'s circle', advTag: 'Advanced', trayhintAdv: 'Drop each name on its country\'s circle', loadingMap: 'Loading map…', loadFail: 'Map failed to load. Tap again', contDone: (d, n) => `${d} of ${n} done`,
         il: ['Press and drag a piece onto the map. In Continents & Oceans, drop each ocean name tag onto its ocean.', 'A correct drop snaps in and shows a country card. A wrong drop bounces back so you can try again.', 'Right on the 1st try: 3 points, 2nd: 2, 3rd: 1.', 'Scroll to zoom in for the small countries.'],
         start: 'Start', best: 'Best', capital: 'Capital', firstTry: (n, p) => `Placed on try ${n} · +${p} pts`, wrong: 'Not there. Try again',
         doneH: r => `${r} is complete!`, switchLv: 'Change region', resTime: 'Time', resScore: 'Score', resStars: 'Stars', newBest: 'New best', again: 'Play again', review: 'You missed these. They come first next time:', perfect: 'Every piece right on the first try. Excellent.',
@@ -731,6 +737,7 @@ function placeLabel(id, g = $('gLabels')) {
     return;
   }
   document.querySelectorAll(`.isle[data-id="${id}"]`).forEach(f => f.classList.add('done'));
+  document.querySelectorAll(`.zone[data-id="${id}"]`).forEach(z => z.remove());
   const c = byId[id], info = INFO[id], f = LV[level].labelFix[id] || [0, 0];
   const x0 = c.label[0] + f[0], y0 = c.label[1] + f[1];
   const t = mk('text', { x: x0, y: y0, class: 'lbl place', 'data-id': id }, g);
@@ -857,7 +864,8 @@ function newGame() {
   const gs = $('gSlots'); gs.textContent = '';
   for (const id of TARGETS) if (!byId[id].ocean) mk('use', { href: '#c-' + id, class: advanced ? 'slot adv' : 'slot', id: 'slot-' + id }, gs);
   $('card').hidden = true; fitView();
-  if (advanced) drawIsleFrames(gs);
+  zonePos = {};
+  if (advanced) { drawIsleFrames(gs); drawDropZones(gs); }
   renderTray(); drawLabels(); renderStats();
 }
 function startClock() { if (state.started) return; state.started = true; state.t0 = performance.now(); }
@@ -1022,6 +1030,32 @@ function onPieceMove(e) {
   setTimeout(() => drag && drag.ghost && drag.ghost.classList.remove('anim'), 230);
 }
 let hoverRaf = 0, hoverId = null;
+// ---- is a map point inside a country? Computed from the border coordinates themselves (even-odd rule),
+// not with the browser's hit-testing, which some browsers do not support for shapes kept in <defs>
+const ringCache = {};
+function ringsOf(id) {
+  const c = byId[id], key = level + '|' + id;
+  if (ringCache[key] && ringCache[key].d === c.d) return ringCache[key].rings;
+  const rings = [...c.d.matchAll(/M([^M]*)/g)].map(m => {
+    const n = (m[1].match(/-?\d+(?:\.\d+)?/g) || []).map(Number), xs = [], ys = [];
+    for (let i = 0; i + 1 < n.length; i += 2) { xs.push(n[i]); ys.push(n[i + 1]); }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < xs.length; i++) { x0 = Math.min(x0, xs[i]); x1 = Math.max(x1, xs[i]); y0 = Math.min(y0, ys[i]); y1 = Math.max(y1, ys[i]); }
+    return { xs, ys, x0, x1, y0, y1 };
+  });
+  ringCache[key] = { d: c.d, rings };
+  return rings;
+}
+function inCountry(id, x, y) {
+  let inside = false;
+  for (const r of ringsOf(id)) {
+    if (x < r.x0 || x > r.x1 || y < r.y0 || y > r.y1) continue;
+    const { xs, ys } = r;
+    for (let i = 0, j = xs.length - 1; i < xs.length; j = i++)
+      if ((ys[i] > y) !== (ys[j] > y) && x < (xs[j] - xs[i]) * (y - ys[i]) / (ys[j] - ys[i]) + xs[i]) inside = !inside;
+  }
+  return inside;
+}
 // which unplaced country (dashed area) is under this screen point
 function countryUnder(px, py) {
   const [mx, my] = clientToMap(px, py), s = mapScale();
@@ -1030,14 +1064,12 @@ function countryUnder(px, py) {
   const inBox = (c, pad) => mx >= c.bbox[0] - pad && mx <= c.bbox[0] + c.bbox[2] + pad && my >= c.bbox[1] - pad && my <= c.bbox[1] + c.bbox[3] + pad;
   for (const id of TARGETS) {
     const c = byId[id]; if (c.ocean || state.placed.includes(id)) continue;
-    const el = $('c-' + id); let hit = false;
-    try { hit = el.isPointInFill(new DOMPoint(mx, my)); } catch (e) {}
-    if (hit) { if (smaller(id, exact)) exact = id; continue; }
+    if (inCountry(id, mx, my)) { if (smaller(id, exact)) exact = id; continue; }
     if (Math.min(c.bbox[2], c.bbox[3]) * s < 30) {      // tiny countries and island groups: their frame, or close by, counts
       const inFrame = [...document.querySelectorAll(`.isle[data-id="${id}"]`)].some(r => { const b = r.getBBox(); return mx >= b.x && mx <= b.x + b.width && my >= b.y && my <= b.y + b.height; });
       // within 5 px of the tiny country's actual land (not its bounding box, which can cover a neighbour)
       const r8 = 5 / s; let touch = false;
-      for (let a = 0; a < 12 && !touch; a++) { try { touch = el.isPointInFill(new DOMPoint(mx + r8 * Math.cos(a * Math.PI / 6), my + r8 * Math.sin(a * Math.PI / 6))); } catch (e) {} }
+      for (let a = 0; a < 12 && !touch; a++) touch = inCountry(id, mx + r8 * Math.cos(a * Math.PI / 6), my + r8 * Math.sin(a * Math.PI / 6));
       if ((inFrame || touch) && smaller(id, tight)) tight = id;
       if ((inFrame || inBox(c, 22 / s)) && smaller(id, near)) near = id;
     }
@@ -1048,16 +1080,64 @@ function countryUnder(px, py) {
   if (tight && (!exact || area(exact) >= 20 * area(tight))) return tight;
   return exact || near;
 }
+// ---- advanced mode: a "drop here" ring in the middle of every country still to be placed
+const ZONE_R = 13, ZONE_CATCH = 30;   // ring radius and how close (screen px) the name or the pin's tip must come
+let zonePos = {};
+function drawDropZones(g) {
+  const s = mapScale(), r = ZONE_R / s, gap = 2 * r + 6 / s;
+  const ids = TARGETS.filter(id => !byId[id].ocean);
+  zonePos = {}; ids.forEach(id => zonePos[id] = byId[id].label.slice());
+  // rings that would overlap (Hong Kong and Macau, Lebanon and Israel) are nudged apart
+  for (let it = 0; it < 40; it++) {
+    let moved = false;
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const a = zonePos[ids[i]], b = zonePos[ids[j]];
+      let dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy);
+      if (d >= gap) continue;
+      if (d < 1e-6) { dx = 1; dy = 0; d = 1; }
+      const push = (gap - d) / 2 + .01;
+      a[0] -= dx / d * push; a[1] -= dy / d * push; b[0] += dx / d * push; b[1] += dy / d * push; moved = true;
+    }
+    if (!moved) break;
+  }
+  for (const id of ids) {
+    if (state.placed.includes(id)) continue;
+    const c = byId[id], [x, y] = zonePos[id];
+    const z = mk('g', { class: 'zone' }, g); z.dataset.id = id;
+    if (Math.hypot(x - c.label[0], y - c.label[1]) > r) {   // moved: a thin line back to the country
+      mk('line', { x1: c.label[0], y1: c.label[1], x2: x, y2: y, class: 'leader' }, z);
+      mk('circle', { cx: c.label[0], cy: c.label[1], r: r * .2, class: 'dot' }, z);
+    }
+    mk('circle', { cx: x, cy: y, r, class: 'ring' }, z);
+    mk('circle', { cx: x, cy: y, r: r * .28, class: 'dot' }, z);
+  }
+}
+function zoneNear(px, py) {
+  const [mx, my] = clientToMap(px, py), s = mapScale(); let id = null, dist = ZONE_CATCH;
+  for (const k of TARGETS) {
+    const c = byId[k], p = zonePos[k]; if (c.ocean || !p || state.placed.includes(k)) continue;
+    const d = Math.hypot(p[0] - mx, p[1] - my) * s; if (d < dist) { dist = d; id = k; }
+  }
+  return { id, dist };
+}
 // a name tag points at two spots: the middle of its name, and the tip of its pin (just below)
 function tagPoints(d, px, py) { const [gx, gy, w] = ghostTarget(d, px, py); return [gx + w / 2, gy + 20, px, py]; }
-// the country under the name wins; if the name is over sea or empty land, the pin's tip decides
-function countryUnderTag(cx, cy, tx, ty) { return countryUnder(cx, cy) || countryUnder(tx, ty); }
+// where a name tag would go: the nearest drop ring under the name or the tip; else the country's land under them
+function countryUnderTag(cx, cy, tx, ty) {
+  const a = zoneNear(cx, cy), b = zoneNear(tx, ty);
+  if (a.id || b.id) return (!b.id || (a.id && a.dist <= b.dist)) ? a.id : b.id;
+  return countryUnder(cx, cy) || countryUnder(tx, ty);
+}
 function setHover(px, py, tx, ty) {
   const id = px == null ? null : (tx == null ? countryUnder(px, py) : countryUnderTag(px, py, tx, ty));
   if (id === hoverId) return;
-  if (hoverId) { const o = $('slot-' + hoverId); if (o) o.classList.remove('hover'); document.querySelectorAll(`.isle[data-id="${hoverId}"]`).forEach(r => r.classList.remove('hover')); }
+  const mark = (k, on) => {
+    const n = $('slot-' + k); if (n) n.classList.toggle('hover', on);
+    document.querySelectorAll(`.isle[data-id="${k}"], .zone[data-id="${k}"]`).forEach(r => r.classList.toggle('hover', on));
+  };
+  if (hoverId) mark(hoverId, false);
   hoverId = id;
-  if (id) { const n = $('slot-' + id); if (n) n.classList.add('hover'); document.querySelectorAll(`.isle[data-id="${id}"]`).forEach(r => r.classList.add('hover')); }
+  if (id) mark(id, true);
 }
 function cleanupDrag() {
   cancelAnimationFrame(hoverRaf); setHover(null);
@@ -1078,8 +1158,8 @@ function onPieceUp(e) {
     const b = pieceBox(d.id);
     const ok = c.ocean ? oceanAt(...clientToMap(gx + b[2] / 2, gy + b[3] / 2)) === c.code
                        : (() => { const [cx, cy, tx, ty] = tagPoints(d, e.clientX, e.clientY);
-                                  // right if either the name or the pin's tip is on the country
-                                  return countryUnderTag(cx, cy, tx, ty) === d.id || [[cx, cy], [tx, ty]].some(([x, y]) => countryUnder(x, y) === d.id || onCountry(d.id, ...clientToMap(x, y))); })();
+                                  // right if it went to this country's drop ring, or the name or the pin's tip is on its land
+                                  return countryUnderTag(cx, cy, tx, ty) === d.id || [[cx, cy], [tx, ty]].some(([x, y]) => onCountry(d.id, ...clientToMap(x, y))); })();
     ok ? correct(d.id, d.ghost) : wrong(d.id, d.ghost, d.el); return;
   }
   const [mx, my] = clientToMap(gx, gy);
@@ -1097,8 +1177,8 @@ function onPieceUp(e) {
   if (distPx <= tol || inside) correct(d.id, d.ghost); else wrong(d.id, d.ghost, d.el);
 }
 function onCountry(id, mx, my) {
-  const el = $('c-' + id), s = mapScale(), c = byId[id];
-  const hit = (x, y) => { try { return el.isPointInFill(new DOMPoint(x, y)); } catch (e) { return false; } };
+  const s = mapScale(), c = byId[id];
+  const hit = (x, y) => inCountry(id, x, y);
   if (hit(mx, my)) return true;
   const r = 12 / s;                                  // 12 screen px of slack around the coast or border
   for (let a = 0; a < 8; a++) if (hit(mx + r * Math.cos(a * Math.PI / 4), my + r * Math.sin(a * Math.PI / 4))) return true;
