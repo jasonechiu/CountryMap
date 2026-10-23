@@ -857,7 +857,7 @@ function newGame() {
   const gs = $('gSlots'); gs.textContent = '';
   for (const id of TARGETS) if (!byId[id].ocean) mk('use', { href: '#c-' + id, class: advanced ? 'slot adv' : 'slot', id: 'slot-' + id }, gs);
   $('card').hidden = true; fitView();
-  drawIsleFrames(gs);
+  if (advanced) drawIsleFrames(gs);
   renderTray(); drawLabels(); renderStats();
 }
 function startClock() { if (state.started) return; state.started = true; state.t0 = performance.now(); }
@@ -1025,18 +1025,28 @@ let hoverRaf = 0, hoverId = null;
 // which unplaced country (dashed area) is under this screen point
 function countryUnder(px, py) {
   const [mx, my] = clientToMap(px, py), s = mapScale();
-  let best = null;
+  let exact = null, near = null, tight = null;
+  const smaller = (a, b) => !b || byId[a].bbox[2] * byId[a].bbox[3] < byId[b].bbox[2] * byId[b].bbox[3];   // the smaller one wins (enclaves)
+  const inBox = (c, pad) => mx >= c.bbox[0] - pad && mx <= c.bbox[0] + c.bbox[2] + pad && my >= c.bbox[1] - pad && my <= c.bbox[1] + c.bbox[3] + pad;
   for (const id of TARGETS) {
     const c = byId[id]; if (c.ocean || state.placed.includes(id)) continue;
     const el = $('c-' + id); let hit = false;
     try { hit = el.isPointInFill(new DOMPoint(mx, my)); } catch (e) {}
-    if (!hit && Math.min(c.bbox[2], c.bbox[3]) * s < 30) {      // tiny countries and island groups: their frame counts
-      hit = [...document.querySelectorAll(`.isle[data-id="${id}"]`)].some(r => { const b = r.getBBox(); return mx >= b.x && mx <= b.x + b.width && my >= b.y && my <= b.y + b.height; });
-      if (!hit) { const pad = 22 / s; hit = mx >= c.bbox[0] - pad && mx <= c.bbox[0] + c.bbox[2] + pad && my >= c.bbox[1] - pad && my <= c.bbox[1] + c.bbox[3] + pad; }
+    if (hit) { if (smaller(id, exact)) exact = id; continue; }
+    if (Math.min(c.bbox[2], c.bbox[3]) * s < 30) {      // tiny countries and island groups: their frame, or close by, counts
+      const inFrame = [...document.querySelectorAll(`.isle[data-id="${id}"]`)].some(r => { const b = r.getBBox(); return mx >= b.x && mx <= b.x + b.width && my >= b.y && my <= b.y + b.height; });
+      // within 5 px of the tiny country's actual land (not its bounding box, which can cover a neighbour)
+      const r8 = 5 / s; let touch = false;
+      for (let a = 0; a < 12 && !touch; a++) { try { touch = el.isPointInFill(new DOMPoint(mx + r8 * Math.cos(a * Math.PI / 6), my + r8 * Math.sin(a * Math.PI / 6))); } catch (e) {} }
+      if ((inFrame || touch) && smaller(id, tight)) tight = id;
+      if ((inFrame || inBox(c, 22 / s)) && smaller(id, near)) near = id;
     }
-    if (hit && (!best || c.bbox[2] * c.bbox[3] < byId[best].bbox[2] * byId[best].bbox[3])) best = id;   // the smaller one wins (enclaves)
   }
-  return best;
+  // right next to a tiny country inside a much bigger one (Vatican in Italy, Lesotho in South Africa) the tiny one wins;
+  // otherwise the land under the cursor beats the slack around a small neighbour
+  const area = id => byId[id].bbox[2] * byId[id].bbox[3];
+  if (tight && (!exact || area(exact) >= 20 * area(tight))) return tight;
+  return exact || near;
 }
 function setHover(px, py) {
   const id = px == null ? null : countryUnder(px, py);
